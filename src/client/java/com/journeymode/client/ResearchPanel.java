@@ -70,10 +70,11 @@ public final class ResearchPanel {
 	private static final int RECIPE_BOOK_WIDTH = 148;
 	private static final int PANEL_WIDTH = 124;
 	private static final int RESEARCH_HEIGHT = 112;
-	private static final int ITEMS_HEIGHT = 136;
+	/** Room for the title and search box above the grid (see GRID_OFFSET_Y), seven rows of cells, and a margin. */
+	private static final int ITEMS_HEIGHT = 38 + 7 * 18 + 8;
 
 	private static final int GRID_COLUMNS = 6;
-	private static final int GRID_ROWS = 5;
+	private static final int GRID_ROWS = 7;
 	private static final int CELL = 18;
 	private static final int GRID_OFFSET_X = 8;
 	private static final int GRID_OFFSET_Y = 38;
