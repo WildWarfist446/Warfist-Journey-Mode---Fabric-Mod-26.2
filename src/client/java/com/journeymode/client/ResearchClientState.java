@@ -1,5 +1,6 @@
 package com.journeymode.client;
 
+import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
@@ -11,21 +12,21 @@ import com.journeymode.network.MobSpawnSetPayload;
 import com.journeymode.network.ResearchSyncPayload;
 import com.journeymode.network.TrashSyncPayload;
 import com.journeymode.research.ResearchCosts;
+import com.journeymode.research.ResearchKeys;
 
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 
 import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.resources.Identifier;
-import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 
 /** What the server last told this player about their research. */
 public final class ResearchClientState {
-	private static Map<Identifier, Integer> progress = Map.of();
-	private static List<Item> researched = List.of();
-	/** The fully researched items and those that have been started but not finished, in the game's item order. */
-	private static List<Item> listed = List.of();
+	/** What the player has sacrificed, by research key (see {@link ResearchKeys}). */
+	private static Map<String, Integer> progress = Map.of();
+	private static int researchedCount;
+	/** Everything with some research done, finished or not, in the game's item order. */
+	private static List<ResearchEntry> listed = List.of();
 	/** Whether the server has sent progress since this player joined. */
 	private static boolean synced;
 	private static boolean journeyEnabled;
@@ -61,25 +62,31 @@ public final class ResearchClientState {
 				ResearchCosts.setRules(payload.rules()));
 		ClientPlayNetworking.registerGlobalReceiver(ResearchSyncPayload.TYPE, (payload, context) -> {
 			int before = total(progress);
-			int researchedBefore = researched.size();
+			int researchedBefore = researchedCount;
 			progress = Map.copyOf(payload.progress());
-			researched = progress.entrySet().stream()
-					.map(entry -> BuiltInRegistries.ITEM.getOptional(entry.getKey()).filter(item -> entry.getValue() >= ResearchCosts.required(item)))
-					.flatMap(java.util.Optional::stream)
-					.sorted(Comparator.comparingInt(BuiltInRegistries.ITEM::getId))
-					.toList();
-			listed = progress.entrySet().stream()
-					.map(entry -> BuiltInRegistries.ITEM.getOptional(entry.getKey()).filter(item -> entry.getValue() > 0))
-					.flatMap(java.util.Optional::stream)
-					.sorted(Comparator.comparingInt(BuiltInRegistries.ITEM::getId))
-					.toList();
+
+			// Each key becomes one thing in the list. Potions and enchanted books are made from their key, and
+			// anything that no longer exists (a removed mod's item, say) is left out.
+			List<ResearchEntry> entries = new ArrayList<>();
+			if (context.client().level != null) {
+				for (Map.Entry<String, Integer> saved : progress.entrySet()) {
+					ItemStack stack = ResearchKeys.stackOf(saved.getKey(), context.client().level.registryAccess());
+					if (!stack.isEmpty() && saved.getValue() > 0) {
+						entries.add(new ResearchEntry(saved.getKey(), stack.getItem(), stack));
+					}
+				}
+			}
+			entries.sort(Comparator.<ResearchEntry>comparingInt(entry -> BuiltInRegistries.ITEM.getId(entry.item()))
+					.thenComparing(ResearchEntry::key));
+			listed = List.copyOf(entries);
+			researchedCount = (int) listed.stream().filter(ResearchClientState::isResearched).count();
 
 			// The first sync after joining just loads saved progress. Any later one that adds to it
 			// means items were just sacrificed: a celebration if that finished an item, a pop if not.
 			boolean added = synced && total(progress) > before;
 			synced = true;
 			if (added) {
-				if (researched.size() > researchedBefore) {
+				if (researchedCount > researchedBefore) {
 					ResearchSounds.playCompleted();
 				} else {
 					ResearchSounds.playProgress();
@@ -88,7 +95,7 @@ public final class ResearchClientState {
 		});
 		ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> {
 			progress = Map.of();
-			researched = List.of();
+			researchedCount = 0;
 			listed = List.of();
 			synced = false;
 			journeyEnabled = false;
@@ -99,35 +106,30 @@ public final class ResearchClientState {
 		});
 	}
 
-	private static int total(Map<Identifier, Integer> progress) {
+	private static int total(Map<String, Integer> progress) {
 		return progress.values().stream().mapToInt(Integer::intValue).sum();
 	}
 
-	public static int progress(Item item) {
-		return progress.getOrDefault(BuiltInRegistries.ITEM.getKey(item), 0);
+	/** How much of this item (this kind of it, for potions and books) has been sacrificed. */
+	public static int progress(ItemStack stack) {
+		return progress.getOrDefault(ResearchKeys.of(stack), 0);
 	}
 
 	public static ItemStack trash() {
 		return trash;
 	}
 
-	public static boolean isResearched(Item item) {
-		return progress(item) >= ResearchCosts.required(item);
+	public static boolean isResearched(ResearchEntry entry) {
+		return progress.getOrDefault(entry.key(), 0) >= ResearchCosts.required(entry.item());
 	}
 
-	/** Every fully researched item, in the game's item order. */
-	public static List<Item> researchedItems() {
-		return researched;
-	}
-
-	/** Every item with some research done, finished or not, in the game's item order. */
-	public static List<Item> listedItems() {
+	/** Everything with some research done, finished or not, in the game's item order. */
+	public static List<ResearchEntry> listedItems() {
 		return listed;
 	}
 
-	/** How many more of the item must be sacrificed to finish researching it, or 0 if it is done. */
-	public static int remaining(Item item) {
-		return Math.max(0, ResearchCosts.required(item) - progress(item));
+	/** How many more must be sacrificed to finish researching it, or 0 if it is done. */
+	public static int remaining(ResearchEntry entry) {
+		return Math.max(0, ResearchCosts.required(entry.item()) - progress.getOrDefault(entry.key(), 0));
 	}
-
 }

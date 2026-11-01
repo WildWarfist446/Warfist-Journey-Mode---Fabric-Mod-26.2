@@ -162,6 +162,8 @@ public final class ResearchPanel {
 	private static String searchText = "";
 	/** The item list's selected tab. */
 	private static ItemCategory category = ItemCategory.ALL;
+	/** Whether the item list leaves out items that are only partly researched. */
+	private static boolean hideIncomplete;
 	/** Whether the press of the mouse button now held was used by the panels, so its release must be ignored too. */
 	private static boolean swallowRelease;
 	/** Whether the scroll bar is being dragged. */
@@ -222,10 +224,11 @@ public final class ResearchPanel {
 	private static EditBox searchBox;
 
 	// The researched items matching the search, worked out again only when either changes.
-	private static List<Item> shown = List.of();
-	private static List<Item> shownSource;
+	private static List<ResearchEntry> shown = List.of();
+	private static List<ResearchEntry> shownSource;
 	private static String shownQuery = "";
 	private static ItemCategory shownCategory = ItemCategory.ALL;
+	private static boolean shownHideIncomplete;
 
 	private ResearchPanel() {
 	}
@@ -238,7 +241,7 @@ public final class ResearchPanel {
 			for (Slider slider : SLIDERS) {
 				slider.resting = -1;
 			}
-			searchBox = new EditBox(client.font, 0, 0, GRID_COLUMNS * CELL, SEARCH_HEIGHT, Component.translatable(KEY + "search"));
+			searchBox = new EditBox(client.font, 0, 0, GRID_COLUMNS * CELL - CELL - 2, SEARCH_HEIGHT, Component.translatable(KEY + "search"));
 			searchBox.setHint(Component.translatable(KEY + "search").withStyle(ChatFormatting.DARK_GRAY));
 			searchBox.setMaxLength(50);
 			searchBox.setValue(searchText);
@@ -299,17 +302,18 @@ public final class ResearchPanel {
 	// ---------------------------------------------------------------- searching
 
 	/** The researched items that match the search box, in the game's item order. */
-	private static List<Item> shownItems() {
-		List<Item> source = ResearchClientState.listedItems();
+	private static List<ResearchEntry> shownItems() {
+		List<ResearchEntry> source = ResearchClientState.listedItems();
 		String query = searchText.strip().toLowerCase(Locale.ROOT);
-		if (source != shownSource || !query.equals(shownQuery) || category != shownCategory) {
+		if (source != shownSource || !query.equals(shownQuery) || category != shownCategory || hideIncomplete != shownHideIncomplete) {
 			shownSource = source;
+			shownHideIncomplete = hideIncomplete;
 			shownQuery = query;
 			shownCategory = category;
-			List<Item> matches = new ArrayList<>();
-			for (Item item : source) {
-				if (category.matches(item) && (query.isEmpty() || matches(item, query))) {
-					matches.add(item);
+			List<ResearchEntry> matches = new ArrayList<>();
+			for (ResearchEntry entry : source) {
+				if (category.matches(entry.item()) && (!hideIncomplete || ResearchClientState.isResearched(entry)) && (query.isEmpty() || matches(entry, query))) {
+					matches.add(entry);
 				}
 			}
 			shown = List.copyOf(matches);
@@ -321,13 +325,13 @@ public final class ResearchPanel {
 	 * Whether the item matches the query: every word of it appears in the item's name or registry
 	 * name. A query starting with "@" matches the mod that added the item instead (by id or name).
 	 */
-	private static boolean matches(Item item, String query) {
-		Identifier id = BuiltInRegistries.ITEM.getKey(item);
+	private static boolean matches(ResearchEntry entry, String query) {
+		Identifier id = BuiltInRegistries.ITEM.getKey(entry.item());
 		if (query.startsWith("@")) {
 			String mod = query.substring(1).strip();
 			return id.getNamespace().contains(mod) || modName(id.getNamespace()).toLowerCase(Locale.ROOT).contains(mod);
 		}
-		String text = (new ItemStack(item).getHoverName().getString() + " " + id.getPath()).toLowerCase(Locale.ROOT);
+		String text = (entry.stack().getHoverName().getString() + " " + id.getPath()).toLowerCase(Locale.ROOT);
 		for (String word : query.split("\\s+")) {
 			if (!text.contains(word)) {
 				return false;
@@ -425,6 +429,15 @@ public final class ResearchPanel {
 		}
 		int index = (int) (mx - gridX(screen)) / CELL;
 		return index < ItemCategory.values().length ? ItemCategory.values()[index] : null;
+	}
+
+	/** Whether the point is over the toggle that hides unfinished items, at the right end of the search row. */
+	private static boolean overHideToggle(AbstractContainerScreen<?> screen, double mx, double my) {
+		return mode == Mode.ITEMS && inside(mx, my, hideToggleX(screen), panelY(screen) + SEARCH_OFFSET_Y, CELL, SEARCH_HEIGHT);
+	}
+
+	private static int hideToggleX(AbstractContainerScreen<?> screen) {
+		return gridX(screen) + GRID_COLUMNS * CELL - CELL;
 	}
 
 	private static int scrollbarX(AbstractContainerScreen<?> screen) {
@@ -733,7 +746,7 @@ public final class ResearchPanel {
 			}
 		} else {
 			int needed = ResearchCosts.required(carried.getItem());
-			int done = Math.min(ResearchClientState.progress(carried.getItem()), needed);
+			int done = Math.min(ResearchClientState.progress(carried), needed);
 			boolean researched = done >= needed;
 			graphics.fill(barX, barY, barX + barWidth * done / needed, barY + 8, researched ? DONE : ACCENT);
 			Component status = researched
@@ -746,10 +759,31 @@ public final class ResearchPanel {
 	private static void extractItems(Minecraft client, InventoryScreen screen, GuiGraphicsExtractor graphics, int mouseX, int mouseY,
 			int px, int py) {
 		Font font = client.font;
-		List<Item> items = shownItems();
+		List<ResearchEntry> items = shownItems();
 		int gx = gridX(screen);
 		int gy = gridY(screen);
 		int hovered = itemAt(screen, mouseX, mouseY);
+
+		int toggleX = hideToggleX(screen);
+		int toggleY = py + SEARCH_OFFSET_Y;
+		if (hideIncomplete) {
+			graphics.fill(toggleX, toggleY, toggleX + CELL, toggleY + SEARCH_HEIGHT, ACCENT);
+			graphics.fill(toggleX + 1, toggleY + 1, toggleX + CELL - 1, toggleY + SEARCH_HEIGHT - 1, ACCENT_DARK);
+			graphics.fill(toggleX + 1, toggleY, toggleX + CELL - 1, toggleY + 1, BRASS_LIGHT);
+		} else {
+			recess(graphics, toggleX, toggleY, CELL, SEARCH_HEIGHT);
+		}
+		UnresearchedMarker.draw(graphics, toggleX + (CELL - 5) / 2, toggleY + (SEARCH_HEIGHT - 5) / 2);
+		if (hideIncomplete) {
+			// A brass slash through the cog while unfinished items are hidden.
+			for (int i = 0; i < 9; i++) {
+				graphics.fill(toggleX + 4 + i, toggleY + 10 - i, toggleX + 5 + i, toggleY + 11 - i, BRASS_LIGHT);
+			}
+		}
+		if (overHideToggle(screen, mouseX, mouseY)) {
+			graphics.fill(toggleX + 1, toggleY + 1, toggleX + CELL - 1, toggleY + SEARCH_HEIGHT - 1, HOVER);
+			graphics.setTooltipForNextFrame(font, Component.translatable(KEY + (hideIncomplete ? "show_incomplete" : "hide_incomplete")), mouseX, mouseY);
+		}
 
 		ItemCategory hoveredTab = tabAt(screen, mouseX, mouseY);
 		for (ItemCategory tab : ItemCategory.values()) {
@@ -778,12 +812,12 @@ public final class ResearchPanel {
 				recess(graphics, x, y, CELL, CELL);
 				int index = (scrollRow + row) * GRID_COLUMNS + col;
 				if (index < items.size()) {
-					Item item = items.get(index);
-					graphics.fakeItem(new ItemStack(item), x + 1, y + 1);
-					if (!ResearchClientState.isResearched(item)) {
+					ResearchEntry entry = items.get(index);
+					graphics.fakeItem(entry.stack(), x + 1, y + 1);
+					if (!ResearchClientState.isResearched(entry)) {
 						// Started but not finished: dimmed, with how many more it needs in the corner like a stack count.
 						graphics.fill(x + 1, y + 1, x + CELL - 1, y + CELL - 1, 0xB0181009);
-						String remaining = String.valueOf(ResearchClientState.remaining(item));
+						String remaining = String.valueOf(ResearchClientState.remaining(entry));
 						graphics.text(font, remaining, x + CELL - 1 - font.width(remaining), y + CELL - 9, TEXT, true);
 					}
 					if (index == hovered) {
@@ -827,13 +861,13 @@ public final class ResearchPanel {
 
 		if (hovered >= 0) {
 			// The item's usual tooltip, then the mod that added it.
-			ItemStack stack = new ItemStack(items.get(hovered));
-			List<Component> tooltip = new ArrayList<>(Screen.getTooltipFromItem(client, stack));
-			if (!ResearchClientState.isResearched(stack.getItem())) {
-				tooltip.add(Component.translatable(KEY + "remaining", ResearchClientState.remaining(stack.getItem()))
+			ResearchEntry entry = items.get(hovered);
+			List<Component> tooltip = new ArrayList<>(Screen.getTooltipFromItem(client, entry.stack()));
+			if (!ResearchClientState.isResearched(entry)) {
+				tooltip.add(Component.translatable(KEY + "remaining", ResearchClientState.remaining(entry))
 						.withStyle(ChatFormatting.GOLD));
 			}
-			tooltip.add(Component.literal(modName(BuiltInRegistries.ITEM.getKey(stack.getItem()).getNamespace()))
+			tooltip.add(Component.literal(modName(BuiltInRegistries.ITEM.getKey(entry.item()).getNamespace()))
 					.withStyle(ChatFormatting.BLUE, ChatFormatting.ITALIC));
 			graphics.setComponentTooltipForNextFrame(font, tooltip, mouseX, mouseY);
 		}
@@ -881,7 +915,7 @@ public final class ResearchPanel {
 		if (mode == Mode.RESEARCH && shift && (button == 0 || button == 1)) {
 			Slot slot = ((AbstractContainerScreenAccessor) screen).journeymode$hoveredSlot();
 			if (slot != null && slot.hasItem() && slot.container == client.player.getInventory() && slot.getContainerSlot() < 36
-					&& ResearchClientState.progress(slot.getItem().getItem()) < ResearchCosts.required(slot.getItem().getItem())) {
+					&& ResearchClientState.progress(slot.getItem()) < ResearchCosts.required(slot.getItem().getItem())) {
 				ClientPlayNetworking.send(new ResearchSlotPayload(slot.index));
 				client.getSoundManager().play(SimpleSoundInstance.forUI(SoundEvents.UI_BUTTON_CLICK, 1.0F));
 				return true;
@@ -909,6 +943,12 @@ public final class ResearchPanel {
 				draggingScrollbar = true;
 				scrollTo(screen, my);
 			}
+		} else if (overHideToggle(screen, mx, my)) {
+			if (button == 0) {
+				hideIncomplete = !hideIncomplete;
+				scrollRow = 0;
+				client.getSoundManager().play(SimpleSoundInstance.forUI(SoundEvents.UI_BUTTON_CLICK, 1.0F));
+			}
 		} else if (tabAt(screen, mx, my) != null) {
 			if (button == 0) {
 				category = tabAt(screen, mx, my);
@@ -919,8 +959,7 @@ public final class ResearchPanel {
 			int index = itemAt(screen, mx, my);
 			// Items that are only partly researched can't be taken yet.
 			if (index >= 0 && ResearchClientState.isResearched(shownItems().get(index))) {
-				Item item = shownItems().get(index);
-				ClientPlayNetworking.send(new RequestItemPayload(BuiltInRegistries.ITEM.getKey(item), button, shift));
+				ClientPlayNetworking.send(new RequestItemPayload(shownItems().get(index).key(), button, shift));
 				client.getSoundManager().play(SimpleSoundInstance.forUI(SoundEvents.UI_BUTTON_CLICK, 1.0F));
 			}
 		}

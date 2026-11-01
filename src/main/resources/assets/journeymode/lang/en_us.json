@@ -41,6 +41,8 @@
   "gui.journeymode.time.midnight": "Midnight",
   "gui.journeymode.time.ops_only": "Operators only",
   "gui.journeymode.research.search": "Search (@mod)",
+  "gui.journeymode.research.hide_incomplete": "Hide unfinished items",
+  "gui.journeymode.research.show_incomplete": "Show unfinished items",
   "gui.journeymode.research.tab.all": "All",
   "gui.journeymode.research.tab.blocks": "Blocks",
   "gui.journeymode.research.tab.tools": "Tools & Combat",

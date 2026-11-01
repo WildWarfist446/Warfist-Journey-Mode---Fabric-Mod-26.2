@@ -209,20 +209,20 @@ public final class ResearchManager {
 		if (stack.isEmpty()) {
 			return;
 		}
-		// The stack may be used up below, and an empty stack reports no item, so keep the item.
+		// The stack may be used up below, and an empty stack reports no item, so keep the item and its key.
 		Item item = stack.getItem();
-		Identifier id = BuiltInRegistries.ITEM.getKey(item);
+		String key = ResearchKeys.of(stack);
 		int needed = ResearchCosts.required(item);
 		ResearchData data = ResearchData.get(player.level().getServer());
-		int used = Math.min(needed - data.progress(player.getUUID(), id), stack.getCount());
+		int used = Math.min(needed - data.progress(player.getUUID(), key), stack.getCount());
 		if (used <= 0) {
 			return;
 		}
-		data.add(player.getUUID(), id, used, needed);
+		data.add(player.getUUID(), key, used, needed);
 		stack.shrink(used);
 		player.containerMenu.broadcastChanges();
 		sync(player);
-		if (data.progress(player.getUUID(), id) >= needed) {
+		if (data.progress(player.getUUID(), key) >= needed) {
 			JourneyAdvancements.onResearched(player, item);
 		}
 	}
@@ -237,15 +237,18 @@ public final class ResearchManager {
 	 * real item in the player's hand is never thrown away. Anything not fully researched is ignored.
 	 */
 	private static void giveItem(ServerPlayer player, RequestItemPayload request) {
-		Item item = BuiltInRegistries.ITEM.getOptional(request.item()).orElse(null);
-		if (!enabled(player) || item == null || item == Items.AIR) {
+		if (!enabled(player)) {
+			return;
+		}
+		// What was clicked is made from its key, so a potion or book comes with what was researched.
+		ItemStack clicked = ResearchKeys.stackOf(request.key(), player.level().getServer().registryAccess());
+		if (clicked.isEmpty()) {
 			return;
 		}
 		ResearchData data = ResearchData.get(player.level().getServer());
-		if (data.progress(player.getUUID(), request.item()) < ResearchCosts.required(item)) {
+		if (data.progress(player.getUUID(), request.key()) < ResearchCosts.required(clicked.getItem())) {
 			return;
 		}
-		ItemStack clicked = new ItemStack(item);
 		int max = clicked.getMaxStackSize();
 		ItemStack carried = player.containerMenu.getCarried();
 

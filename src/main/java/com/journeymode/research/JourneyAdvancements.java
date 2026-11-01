@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -74,24 +75,33 @@ public final class JourneyAdvancements {
 		award(player, "welcome");
 		ResearchData data = ResearchData.get(player.level().getServer());
 		logProgress(player, data);
-		if (!data.all(player.getUUID()).isEmpty()) {
-			for (Map.Entry<Identifier, Integer> entry : data.all(player.getUUID()).entrySet()) {
-				Item item = BuiltInRegistries.ITEM.getOptional(entry.getKey()).orElse(null);
-				if (item != null && entry.getValue() >= ResearchCosts.required(item)) {
-					award(player, "researcher");
-					break;
-				}
-			}
+		if (!researchedItems(player, data).isEmpty()) {
+			award(player, "researcher");
 		}
 		checkCompletion(player, null);
 	}
 
+	/**
+	 * The items the player has fully researched. An item that is researched by kind (a potion, an enchanted
+	 * book) counts once any one kind of it is done.
+	 */
+	private static Set<Item> researchedItems(ServerPlayer player, ResearchData data) {
+		Set<Item> done = new HashSet<>();
+		for (Map.Entry<String, Integer> entry : data.all(player.getUUID()).entrySet()) {
+			Item item = ResearchKeys.itemOf(entry.getKey());
+			if (item != null && entry.getValue() >= ResearchCosts.required(item)) {
+				done.add(item);
+			}
+		}
+		return done;
+	}
+
 	/** Writes, to the debug log, how many items the player has researched out of those each advancement counts. */
 	private static void logProgress(ServerPlayer player, ResearchData data) {
+		Set<Item> researched = researchedItems(player, data);
 		for (ItemCategory category : COMPLETION.keySet()) {
 			long total = obtainable(player.level().getServer()).stream().filter(category::matches).count();
-			long done = obtainable(player.level().getServer()).stream().filter(category::matches)
-					.filter(item -> data.progress(player.getUUID(), BuiltInRegistries.ITEM.getKey(item)) >= ResearchCosts.required(item)).count();
+			long done = obtainable(player.level().getServer()).stream().filter(category::matches).filter(researched::contains).count();
 			JourneyMode.LOGGER.debug("{} has researched {} of {} items for \"{}\"", player.getName().getString(), done, total, COMPLETION.get(category));
 		}
 	}
@@ -108,7 +118,7 @@ public final class JourneyAdvancements {
 	 */
 	private static void checkCompletion(ServerPlayer player, Item justResearched) {
 		MinecraftServer server = player.level().getServer();
-		ResearchData data = ResearchData.get(server);
+		Set<Item> researched = researchedItems(player, ResearchData.get(server));
 		for (Map.Entry<ItemCategory, String> entry : COMPLETION.entrySet()) {
 			ItemCategory category = entry.getKey();
 			if (isDone(player, entry.getValue()) || (justResearched != null && !category.matches(justResearched))) {
@@ -116,7 +126,7 @@ public final class JourneyAdvancements {
 			}
 			boolean all = true;
 			for (Item item : obtainable(server)) {
-				if (category.matches(item) && data.progress(player.getUUID(), BuiltInRegistries.ITEM.getKey(item)) < ResearchCosts.required(item)) {
+				if (category.matches(item) && !researched.contains(item)) {
 					all = false;
 					break;
 				}
