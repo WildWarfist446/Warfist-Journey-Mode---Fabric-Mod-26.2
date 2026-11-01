@@ -1,0 +1,11 @@
+{
+  "container.journeymode.research": "Research",
+
+  "key.category.journeymode.journey_mode": "Journey Mode",
+  "key.journeymode.research_menu": "Research Menu",
+
+  "gui.journeymode.research.button": "Research",
+  "gui.journeymode.research.place_item": "Place an item to research it",
+  "gui.journeymode.research.researched": "Researched!",
+  "gui.journeymode.research.total": "Items researched: %s"
+}
