@@ -53,15 +53,15 @@ public final class ResearchPanel {
 		NONE, RESEARCH, ITEMS
 	}
 
-	private static final int PANEL_OUTER = 0xF0182028;
-	private static final int PANEL_INNER = 0xF0232F3B;
-	private static final int ACCENT = 0xFF5BC0EB;
-	private static final int ACCENT_DARK = 0xFF2F6F8F;
-	private static final int DONE = 0xFF7BD389;
-	private static final int TEXT = 0xFFE6EEF5;
-	private static final int TEXT_DIM = 0xFF93A4B3;
-	private static final int SLOT_BORDER = 0xFF3C5266;
-	private static final int SLOT_FILL = 0xFF111820;
+	private static final int PANEL_OUTER = 0xF0281508;
+	private static final int PANEL_INNER = 0xF0422412;
+	private static final int ACCENT = 0xFFF2994A;
+	private static final int ACCENT_DARK = 0xFFA05A1E;
+	private static final int DONE = 0xFFA8D86A;
+	private static final int TEXT = 0xFFFBEBD6;
+	private static final int TEXT_DIM = 0xFFC2A07C;
+	private static final int SLOT_BORDER = 0xFF7A4C26;
+	private static final int SLOT_FILL = 0xFF1F1008;
 	private static final int HOVER = 0x40FFFFFF;
 
 	private static final int BUTTON_SIZE = 20;
