@@ -12,6 +12,7 @@ Open your inventory. Two buttons sit on its left edge, so they stay clear of JEI
 - The panel shows a progress bar for the item on your cursor, and how many items you have researched in total.
 - The cost of an item is one full stack: 64 for most blocks and materials, 16 for ender pearls, 1 for tools and armor.
 - Progress is saved per player with the world.
+- Sounds: adding items to an item's research plays the item pickup pop. Finishing an item plays a TNT explosion followed by a note block ding.
 
 ### Researched items (second button)
 - A scrolling grid of everything you have fully researched.
