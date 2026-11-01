@@ -56,16 +56,28 @@ public final class ResearchPanel {
 		NONE, RESEARCH, ITEMS
 	}
 
-	private static final int PANEL_OUTER = 0xF0281508;
-	private static final int PANEL_INNER = 0xF0422412;
-	private static final int ACCENT = 0xFFF2994A;
-	private static final int ACCENT_DARK = 0xFFA05A1E;
-	private static final int DONE = 0xFFA8D86A;
-	private static final int TEXT = 0xFFFBEBD6;
-	private static final int TEXT_DIM = 0xFFC2A07C;
-	private static final int SLOT_BORDER = 0xFF7A4C26;
-	private static final int SLOT_FILL = 0xFF1F1008;
+	// Steampunk palette: blackened iron, aged brass and bronze, dark leather, parchment text.
+	private static final int PANEL_OUTER = 0xFF1A110B;
+	private static final int PANEL_INNER = 0xF03A281A;
+	private static final int ACCENT = 0xFFD9A441;
+	private static final int ACCENT_DARK = 0xFF8C5A26;
+	private static final int BRASS_LIGHT = 0xFFF3D88A;
+	private static final int DONE = 0xFF8FD08A;
+	private static final int TEXT = 0xFFF5E6C4;
+	private static final int TEXT_DIM = 0xFFB89B6E;
+	private static final int SLOT_BORDER = 0xFF6B4724;
+	private static final int SLOT_FILL = 0xFF181009;
 	private static final int HOVER = 0x40FFFFFF;
+
+	/** A small cog, drawn in the corners of the panels' title bars. */
+	private static final String[] GEAR = {
+			".X.X.X.",
+			"XXXXXXX",
+			".XX.XX.",
+			"XX...XX",
+			".XX.XX.",
+			"XXXXXXX",
+			".X.X.X."};
 
 	private static final int BUTTON_SIZE = 20;
 	private static final int BUTTON_GAP = 2;
@@ -340,6 +352,42 @@ public final class ResearchPanel {
 
 	// ---------------------------------------------------------------- drawing
 
+	/** A filled rectangle with its corners cut off {@code cut} pixels, so edges look worn rather than sharp. */
+	private static void chamfer(GuiGraphicsExtractor graphics, int x, int y, int w, int h, int cut, int color) {
+		for (int i = 0; i < cut; i++) {
+			int inset = cut - i;
+			graphics.fill(x + inset, y + i, x + w - inset, y + i + 1, color);
+			graphics.fill(x + inset, y + h - i - 1, x + w - inset, y + h - i, color);
+		}
+		graphics.fill(x, y + cut, x + w, y + h - cut, color);
+	}
+
+	/** A sunken slot: a dark edge on the top and left, a lit edge on the bottom and right, and a dark fill. */
+	private static void recess(GuiGraphicsExtractor graphics, int x, int y, int w, int h) {
+		graphics.fill(x, y, x + w, y + h, ACCENT_DARK);
+		graphics.fill(x, y, x + w - 1, y + h - 1, PANEL_OUTER);
+		graphics.fill(x + 1, y + 1, x + w - 1, y + h - 1, SLOT_FILL);
+	}
+
+	/** A small square plate: iron edge, brass rim, then {@code fill}. Used for buttons and slots. */
+	private static void plate(GuiGraphicsExtractor graphics, int x, int y, int size, int fill) {
+		chamfer(graphics, x, y, size, size, 2, PANEL_OUTER);
+		chamfer(graphics, x + 1, y + 1, size - 2, size - 2, 1, ACCENT);
+		graphics.fill(x + 2, y + 2, x + size - 2, y + size - 2, fill);
+		graphics.fill(x + 2, y + 1, x + size - 2, y + 2, BRASS_LIGHT);
+	}
+
+	/** Draws the {@link #GEAR} cog with its top left corner at (x, y). */
+	private static void gear(GuiGraphicsExtractor graphics, int x, int y) {
+		for (int row = 0; row < GEAR.length; row++) {
+			for (int col = 0; col < GEAR[row].length(); col++) {
+				if (GEAR[row].charAt(col) == 'X') {
+					graphics.fill(x + col, y + row, x + col + 1, y + row + 1, row + col < 4 ? ACCENT : ACCENT_DARK);
+				}
+			}
+		}
+	}
+
 	private static void extract(Minecraft client, InventoryScreen screen, GuiGraphicsExtractor graphics, int mouseX, int mouseY) {
 		Font font = client.font;
 		// With the recipe book open, everything is hidden (and ignores clicks) until it is closed again.
@@ -369,10 +417,14 @@ public final class ResearchPanel {
 		int px = panelX(screen);
 		int py = panelY(screen);
 		int height = panelHeight();
-		graphics.fill(px, py, px + PANEL_WIDTH, py + height, PANEL_OUTER);
-		graphics.fill(px + 3, py + 3, px + PANEL_WIDTH - 3, py + height - 3, PANEL_INNER);
-		graphics.outline(px, py, PANEL_WIDTH, height, ACCENT);
-		graphics.outline(px + 2, py + 2, PANEL_WIDTH - 4, height - 4, ACCENT_DARK);
+		// An iron plate with a brass rim, with a cog at each end of the title bar.
+		chamfer(graphics, px, py, PANEL_WIDTH, height, 3, PANEL_OUTER);
+		chamfer(graphics, px + 1, py + 1, PANEL_WIDTH - 2, height - 2, 2, ACCENT);
+		chamfer(graphics, px + 2, py + 2, PANEL_WIDTH - 4, height - 4, 2, ACCENT_DARK);
+		chamfer(graphics, px + 3, py + 3, PANEL_WIDTH - 6, height - 6, 1, PANEL_INNER);
+		graphics.fill(px + 4, py + 1, px + PANEL_WIDTH - 4, py + 2, BRASS_LIGHT);
+		gear(graphics, px + 5, py + 6);
+		gear(graphics, px + PANEL_WIDTH - 12, py + 6);
 		graphics.centeredText(font, Component.translatable(KEY + (mode == Mode.ITEMS ? "items_title" : "title")),
 				px + PANEL_WIDTH / 2, py + 7, ACCENT);
 
@@ -396,8 +448,7 @@ public final class ResearchPanel {
 		int bx = buttonX(screen);
 		int by = buttonY(screen, forMode);
 		boolean active = mode == forMode;
-		graphics.fill(bx, by, bx + BUTTON_SIZE, by + BUTTON_SIZE, active ? ACCENT_DARK : PANEL_INNER);
-		graphics.outline(bx, by, BUTTON_SIZE, BUTTON_SIZE, ACCENT);
+		plate(graphics, bx, by, BUTTON_SIZE, active ? ACCENT_DARK : PANEL_INNER);
 		if (icon != null) {
 			graphics.blit(RenderPipelines.GUI_TEXTURED, icon.texture(), bx + (BUTTON_SIZE - icon.drawWidth()) / 2,
 					by + (BUTTON_SIZE - icon.drawHeight()) / 2, icon.u(), icon.v(), icon.drawWidth(), icon.drawHeight(),
@@ -416,8 +467,7 @@ public final class ResearchPanel {
 		int bx = buttonX(screen);
 		int by = trashY(screen);
 		ItemStack trashed = ResearchClientState.trash();
-		graphics.fill(bx, by, bx + BUTTON_SIZE, by + BUTTON_SIZE, PANEL_INNER);
-		graphics.outline(bx, by, BUTTON_SIZE, BUTTON_SIZE, ACCENT);
+		plate(graphics, bx, by, BUTTON_SIZE, PANEL_INNER);
 		if (trashed.isEmpty()) {
 			graphics.blit(RenderPipelines.GUI_TEXTURED, TRASH_ICON.texture(), bx + (BUTTON_SIZE - TRASH_ICON.drawWidth()) / 2,
 					by + (BUTTON_SIZE - TRASH_ICON.drawHeight()) / 2, TRASH_ICON.u(), TRASH_ICON.v(), TRASH_ICON.drawWidth(),
@@ -437,9 +487,8 @@ public final class ResearchPanel {
 		ItemStack carried = screen.getMenu().getCarried();
 		int dx = dropX(screen);
 		int dy = dropY(screen);
-		graphics.outline(dx - 3, dy - 3, 24, 24, ACCENT_DARK);
-		graphics.fill(dx - 1, dy - 1, dx + 19, dy + 19, SLOT_BORDER);
-		graphics.fill(dx, dy, dx + 18, dy + 18, SLOT_FILL);
+		plate(graphics, dx - 3, dy - 3, 24, ACCENT_DARK);
+		recess(graphics, dx - 1, dy - 1, 20, 20);
 		if (!carried.isEmpty()) {
 			graphics.fakeItem(carried, dx + 1, dy + 1);
 		}
@@ -451,8 +500,7 @@ public final class ResearchPanel {
 		int barX = px + 12;
 		int barY = py + 52;
 		int barWidth = PANEL_WIDTH - 24;
-		graphics.fill(barX - 1, barY - 1, barX + barWidth + 1, barY + 9, SLOT_BORDER);
-		graphics.fill(barX, barY, barX + barWidth, barY + 8, SLOT_FILL);
+		recess(graphics, barX - 1, barY - 1, barWidth + 2, 10);
 		int textY = barY + 13;
 		if (carried.isEmpty()) {
 			int y = textY;
@@ -487,8 +535,14 @@ public final class ResearchPanel {
 			int x = gx + tab.ordinal() * CELL;
 			int y = py + TAB_OFFSET_Y;
 			boolean selected = tab == category;
-			graphics.fill(x, y, x + CELL, y + CELL, selected ? ACCENT : SLOT_BORDER);
-			graphics.fill(x + 1, y + 1, x + CELL - 1, y + CELL - 1, selected ? ACCENT_DARK : SLOT_FILL);
+			if (selected) {
+				// The chosen tab stands out like a raised brass plate; the others are sunk into the panel.
+				graphics.fill(x, y, x + CELL, y + CELL, ACCENT);
+				graphics.fill(x + 1, y + 1, x + CELL - 1, y + CELL - 1, ACCENT_DARK);
+				graphics.fill(x + 1, y, x + CELL - 1, y + 1, BRASS_LIGHT);
+			} else {
+				recess(graphics, x, y, CELL, CELL);
+			}
 			graphics.fakeItem(new ItemStack(tab.icon()), x + 1, y + 1);
 			if (tab == hoveredTab) {
 				graphics.fill(x + 1, y + 1, x + CELL - 1, y + CELL - 1, HOVER);
@@ -500,8 +554,7 @@ public final class ResearchPanel {
 			for (int col = 0; col < GRID_COLUMNS; col++) {
 				int x = gx + col * CELL;
 				int y = gy + row * CELL;
-				graphics.fill(x, y, x + CELL, y + CELL, SLOT_BORDER);
-				graphics.fill(x + 1, y + 1, x + CELL - 1, y + CELL - 1, SLOT_FILL);
+				recess(graphics, x, y, CELL, CELL);
 				int index = (scrollRow + row) * GRID_COLUMNS + col;
 				if (index < items.size()) {
 					graphics.fakeItem(new ItemStack(items.get(index)), x + 1, y + 1);
@@ -515,13 +568,24 @@ public final class ResearchPanel {
 		// The scroll bar is always shown; with nothing to scroll the thumb fills the track and is dimmed.
 		int trackX = scrollbarX(screen);
 		int trackHeight = GRID_ROWS * CELL;
-		graphics.fill(trackX, gy, trackX + SCROLLBAR_WIDTH, gy + trackHeight, SLOT_FILL);
+		// A dark groove with a brass rod sliding in it: shaded like a cylinder, with collars at both ends and grip rings.
+		graphics.fill(trackX, gy, trackX + SCROLLBAR_WIDTH, gy + trackHeight, PANEL_OUTER);
 		int thumbHeight = thumbHeight();
 		int thumbY = maxScrollRow() > 0 ? gy + (trackHeight - thumbHeight) * scrollRow / maxScrollRow() : gy;
 		boolean scrollable = maxScrollRow() > 0;
 		boolean overBar = inside(mouseX, mouseY, trackX - 1, gy, SCROLLBAR_WIDTH + 2, trackHeight);
-		graphics.fill(trackX, thumbY, trackX + SCROLLBAR_WIDTH, thumbY + thumbHeight,
-				!scrollable ? ACCENT_DARK : draggingScrollbar || overBar ? DONE : ACCENT);
+		boolean lit = scrollable && (draggingScrollbar || overBar);
+		int edge = !scrollable ? SLOT_BORDER : ACCENT_DARK;
+		int body = !scrollable ? ACCENT_DARK : ACCENT;
+		int shine = !scrollable ? ACCENT_DARK : lit ? 0xFFFFF2C0 : BRASS_LIGHT;
+		graphics.fill(trackX, thumbY, trackX + 1, thumbY + thumbHeight, edge);
+		graphics.fill(trackX + 1, thumbY, trackX + 2, thumbY + thumbHeight, shine);
+		graphics.fill(trackX + 2, thumbY, trackX + 3, thumbY + thumbHeight, body);
+		graphics.fill(trackX, thumbY, trackX + SCROLLBAR_WIDTH, thumbY + 1, PANEL_OUTER);
+		graphics.fill(trackX, thumbY + thumbHeight - 1, trackX + SCROLLBAR_WIDTH, thumbY + thumbHeight, PANEL_OUTER);
+		for (int ring = thumbY + thumbHeight / 2 - 2; ring <= thumbY + thumbHeight / 2 + 2 && thumbHeight >= 14; ring += 2) {
+			graphics.fill(trackX, ring, trackX + SCROLLBAR_WIDTH, ring + 1, edge);
+		}
 
 		if (items.isEmpty()) {
 			// Either nothing is researched yet, or nothing matches the search.

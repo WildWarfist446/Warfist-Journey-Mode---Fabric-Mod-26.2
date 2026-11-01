@@ -5,7 +5,7 @@ sacrifice items to research them, then take as many copies of anything you have 
 
 ## Features
 
-Open your inventory. Two icon buttons and a trash slot sit on its left edge, so they stay clear of JEI on the right. Each button opens a panel, and only one is open at a time. The panels are centred on the inventory and use an orange and brown colour scheme. Everything hides while the recipe book is open and comes back when it closes.
+Open your inventory. Two icon buttons and a trash slot sit on its left edge, so they stay clear of JEI on the right. Each button opens a panel, and only one is open at a time. The panels are centred on the inventory and have a steampunk look: brass and bronze plates over blackened iron, with small cogs on the title bars, sunken item slots, and a brass rod scroll bar. It is all drawn in code, so there are no extra textures besides the button icons. Everything hides while the recipe book is open and comes back when it closes.
 
 ### Research (first button)
 - Pick up a stack with your cursor and click the panel. The items are used up and count toward that item's research cost.
