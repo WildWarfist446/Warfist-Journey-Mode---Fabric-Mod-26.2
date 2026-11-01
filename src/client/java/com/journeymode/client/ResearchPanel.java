@@ -70,7 +70,7 @@ public final class ResearchPanel {
 	private static final int RECIPE_BOOK_WIDTH = 148;
 	private static final int PANEL_WIDTH = 124;
 	private static final int RESEARCH_HEIGHT = 112;
-	private static final int ITEMS_HEIGHT = 168;
+	private static final int ITEMS_HEIGHT = 136;
 
 	private static final int GRID_COLUMNS = 6;
 	private static final int GRID_ROWS = 5;
@@ -376,11 +376,6 @@ public final class ResearchPanel {
 				graphics.centeredText(font, line, gx + GRID_COLUMNS * CELL / 2, y, TEXT_DIM);
 				y += 10;
 			}
-		}
-		int hintY = gy + GRID_ROWS * CELL + 5;
-		for (FormattedCharSequence line : font.split(Component.translatable(KEY + "items_hint"), PANEL_WIDTH - 16)) {
-			graphics.centeredText(font, line, px + PANEL_WIDTH / 2, hintY, TEXT_DIM);
-			hintY += 10;
 		}
 
 		if (hovered >= 0) {
