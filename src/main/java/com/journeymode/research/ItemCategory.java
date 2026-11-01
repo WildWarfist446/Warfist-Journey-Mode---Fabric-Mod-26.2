@@ -1,4 +1,4 @@
-package com.journeymode.client;
+package com.journeymode.research;
 
 import java.util.Set;
 

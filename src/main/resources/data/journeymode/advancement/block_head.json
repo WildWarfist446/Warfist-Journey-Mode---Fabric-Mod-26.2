@@ -1,0 +1,25 @@
+{
+  "parent": "journeymode:researcher",
+  "display": {
+    "icon": {
+      "id": "minecraft:grass_block"
+    },
+    "title": {
+      "translate": "advancement.journeymode.block_head.title"
+    },
+    "description": {
+      "translate": "advancement.journeymode.block_head.description"
+    },
+    "frame": "challenge"
+  },
+  "criteria": {
+    "done": {
+      "trigger": "minecraft:impossible"
+    }
+  },
+  "requirements": [
+    [
+      "done"
+    ]
+  ]
+}

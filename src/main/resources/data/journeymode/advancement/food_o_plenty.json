@@ -1,0 +1,25 @@
+{
+  "parent": "journeymode:researcher",
+  "display": {
+    "icon": {
+      "id": "minecraft:golden_apple"
+    },
+    "title": {
+      "translate": "advancement.journeymode.food_o_plenty.title"
+    },
+    "description": {
+      "translate": "advancement.journeymode.food_o_plenty.description"
+    },
+    "frame": "challenge"
+  },
+  "criteria": {
+    "done": {
+      "trigger": "minecraft:impossible"
+    }
+  },
+  "requirements": [
+    [
+      "done"
+    ]
+  ]
+}

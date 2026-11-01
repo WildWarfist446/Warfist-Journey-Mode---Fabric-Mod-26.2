@@ -5,6 +5,9 @@ import java.util.List;
 import java.util.Map;
 
 import com.journeymode.network.CostConfigPayload;
+import com.journeymode.network.GodModeSyncPayload;
+import com.journeymode.network.JourneyStatePayload;
+import com.journeymode.network.MobSpawnSetPayload;
 import com.journeymode.network.ResearchSyncPayload;
 import com.journeymode.network.TrashSyncPayload;
 import com.journeymode.research.ResearchCosts;
@@ -23,13 +26,34 @@ public final class ResearchClientState {
 	private static List<Item> researched = List.of();
 	/** Whether the server has sent progress since this player joined. */
 	private static boolean synced;
+	private static boolean journeyEnabled;
+	private static boolean godMode;
+	private static int mobSpawns = 1;
 	/** The stack in this player's trash slot, as the server last told us. */
 	private static ItemStack trash = ItemStack.EMPTY;
 
 	private ResearchClientState() {
 	}
 
+	/** Whether the world this player is in has Journey Mode on. */
+	public static boolean journeyEnabled() {
+		return journeyEnabled;
+	}
+
+	/** This player's Mob Spawns setting, from 1 (normal) to 10. */
+	public static int mobSpawns() {
+		return mobSpawns;
+	}
+
+	/** Whether God Mode is on for this player. */
+	public static boolean godMode() {
+		return godMode;
+	}
+
 	public static void initialize() {
+		ClientPlayNetworking.registerGlobalReceiver(MobSpawnSetPayload.TYPE, (payload, context) -> mobSpawns = payload.multiplier());
+		ClientPlayNetworking.registerGlobalReceiver(GodModeSyncPayload.TYPE, (payload, context) -> godMode = payload.on());
+		ClientPlayNetworking.registerGlobalReceiver(JourneyStatePayload.TYPE, (payload, context) -> journeyEnabled = payload.enabled());
 		ClientPlayNetworking.registerGlobalReceiver(TrashSyncPayload.TYPE, (payload, context) -> trash = payload.stack());
 		ClientPlayNetworking.registerGlobalReceiver(CostConfigPayload.TYPE, (payload, context) ->
 				ResearchCosts.setRules(payload.rules()));
@@ -59,6 +83,9 @@ public final class ResearchClientState {
 			progress = Map.of();
 			researched = List.of();
 			synced = false;
+			journeyEnabled = false;
+			godMode = false;
+			mobSpawns = 1;
 			trash = ItemStack.EMPTY;
 			ResearchSounds.reset();
 		});
@@ -85,8 +112,4 @@ public final class ResearchClientState {
 		return researched;
 	}
 
-	/** How many different items are fully researched. */
-	public static int researchedTotal() {
-		return researched.size();
-	}
 }

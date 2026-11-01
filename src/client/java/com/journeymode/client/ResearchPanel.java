@@ -3,13 +3,20 @@ package com.journeymode.client;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.util.function.IntFunction;
+import java.util.function.ToIntFunction;
 
 import com.journeymode.JourneyMode;
 import com.journeymode.client.mixin.AbstractContainerScreenAccessor;
+import com.journeymode.network.GodModeTogglePayload;
+import com.journeymode.network.MobSpawnSetPayload;
 import com.journeymode.network.RequestItemPayload;
 import com.journeymode.network.ResearchCarriedPayload;
 import com.journeymode.network.ResearchSlotPayload;
+import com.journeymode.network.TimeSetPayload;
+import com.journeymode.network.WeatherSetPayload;
 import com.journeymode.network.TrashClickPayload;
+import com.journeymode.research.ItemCategory;
 import com.journeymode.research.ResearchCosts;
 
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
@@ -30,12 +37,15 @@ import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.client.resources.sounds.SimpleSoundInstance;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
+import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.resources.Identifier;
 import net.minecraft.sounds.SoundEvents;
+import net.minecraft.server.permissions.Permissions;
 import net.minecraft.util.FormattedCharSequence;
 import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
 
 /**
  * The Journey Mode panels beside the survival inventory, on the left so they stay clear of JEI on
@@ -53,20 +63,20 @@ import net.minecraft.world.item.ItemStack;
  */
 public final class ResearchPanel {
 	private enum Mode {
-		NONE, RESEARCH, ITEMS
+		NONE, RESEARCH, ITEMS, TIME, WEATHER, MOBS, GOD
 	}
 
 	// Steampunk palette: blackened iron, aged brass and bronze, dark leather, parchment text.
-	private static final int PANEL_OUTER = 0xFF1A110B;
-	private static final int PANEL_INNER = 0xF03A281A;
-	private static final int ACCENT = 0xFFD9A441;
-	private static final int ACCENT_DARK = 0xFF8C5A26;
-	private static final int BRASS_LIGHT = 0xFFF3D88A;
+	static final int PANEL_OUTER = 0xFF1A110B;
+	static final int PANEL_INNER = 0xF03A281A;
+	static final int ACCENT = 0xFFD9A441;
+	static final int ACCENT_DARK = 0xFF8C5A26;
+	static final int BRASS_LIGHT = 0xFFF3D88A;
 	private static final int DONE = 0xFF8FD08A;
 	private static final int TEXT = 0xFFF5E6C4;
-	private static final int TEXT_DIM = 0xFFB89B6E;
+	static final int TEXT_DIM = 0xFFB89B6E;
 	private static final int SLOT_BORDER = 0xFF6B4724;
-	private static final int SLOT_FILL = 0xFF181009;
+	static final int SLOT_FILL = 0xFF181009;
 	private static final int HOVER = 0x40FFFFFF;
 
 	/** A small cog, drawn in the corners of the panels' title bars. */
@@ -81,7 +91,10 @@ public final class ResearchPanel {
 
 	private static final int BUTTON_SIZE = 20;
 	private static final int BUTTON_GAP = 2;
-	private static final int BUTTON_SPACING = 24;
+	/** Six buttons and the trash slot have to fit down the inventory's height, so they sit just 2 pixels apart. */
+	private static final int BUTTON_SPACING = 22;
+	/** The tab buttons: research, items, time, weather, mob spawns and God Mode. */
+	private static final int TAB_BUTTONS = 6;
 	private static final int PANEL_GAP = 4;
 	/** The recipe book's width, including its border. */
 	private static final int RECIPE_BOOK_WIDTH = 148;
@@ -89,7 +102,17 @@ public final class ResearchPanel {
 	/** The item list's scroll bar is a thin strip just right of the grid. */
 	private static final int SCROLLBAR_WIDTH = 3;
 	private static final int SCROLLBAR_GAP = 1;
-	private static final int RESEARCH_HEIGHT = 112;
+	private static final int RESEARCH_HEIGHT = 100;
+
+	/** The Time and Weather panels are the same: a title, a slider with labels, and room for a note. */
+	private static final int SLIDER_HEIGHT = 62;
+	/** A slider that this player cannot move also has a line below the labels that says so. */
+	private static final int SLIDER_HEIGHT_WITH_NOTE = 68;
+	/** Where the slider's first stop is, from the panel's left edge and top. */
+	private static final int SLIDER_TRACK_OFFSET_X = 26;
+	private static final int SLIDER_TRACK_OFFSET_Y = 36;
+	/** The four times the time slider stops at, as /time set day, noon, night and midnight (in ticks). */
+	private static final int[] TIME_TICKS = {1000, 6000, 13000, 18000};
 	/** Room for the title, tab row and search box above the grid (see GRID_OFFSET_Y), seven rows of cells, and a margin. */
 	private static final int ITEMS_HEIGHT = 56 + 7 * 18 + 8;
 
@@ -127,6 +150,12 @@ public final class ResearchPanel {
 	 */
 	private static final Icon TRASH_ICON = new Icon(JourneyMode.id("textures/gui/trash_icon.png"), 32, 9, 7, 14, 15, 10, 11);
 
+	/** The God Mode button's icon, sprites/god-mode-icon.png: a 16 x 15 picture on a 32 x 32 canvas, drawn at about two thirds size, like the other icons. */
+	private static final Icon GOD_ICON = new Icon(JourneyMode.id("textures/gui/god_mode_icon.png"), 32, 8, 8, 16, 15, 10, 9);
+
+	/** The Weather button's icon, sprites/weather-tab-icon.png: a 22 x 24 picture on a 32 x 32 canvas, drawn at half size. */
+	private static final Icon WEATHER_ICON = new Icon(JourneyMode.id("textures/gui/weather_icon.png"), 32, 5, 4, 22, 24, 11, 12);
+
 	private static Mode mode = Mode.NONE;
 	/** The first visible row of the item list. */
 	private static int scrollRow;
@@ -137,6 +166,58 @@ public final class ResearchPanel {
 	private static boolean swallowRelease;
 	/** Whether the scroll bar is being dragged. */
 	private static boolean draggingScrollbar;
+	/**
+	 * A slider with a few stops that it snaps to. The knob follows the mouse while dragged and the
+	 * change is sent when the button is released. Otherwise it rests where it was left, and is read
+	 * from the world when the panel is opened (resting is -1 until then); following the world live
+	 * made it jump around.
+	 */
+	private static final class Slider {
+		final String keyPrefix;
+		final String[] keys;
+		final int spacing;
+		final IntFunction<CustomPacketPayload> payload;
+		final ToIntFunction<Minecraft> current;
+		/** Whether only operators can move it (the time and weather); the rest are for every player. */
+		final boolean opOnly;
+		/** Whether only every other stop is labelled (the odd numbers stay blank unless the knob is on them). */
+		boolean sparseLabels;
+		boolean dragging;
+		int stop;
+		int resting = -1;
+
+		/** @param keyPrefix the translation key prefix for the stop labels, or null to show {@code keys} as they are */
+		Slider(String keyPrefix, String[] keys, int spacing, boolean opOnly, IntFunction<CustomPacketPayload> payload,
+				ToIntFunction<Minecraft> current) {
+			this.keyPrefix = keyPrefix;
+			this.keys = keys;
+			this.spacing = spacing;
+			this.opOnly = opOnly;
+			this.payload = payload;
+			this.current = current;
+		}
+
+		int stops() {
+			return this.keys.length;
+		}
+
+		int width() {
+			return this.spacing * (this.stops() - 1);
+		}
+	}
+
+	private static final Slider TIME_SLIDER = new Slider("gui.journeymode.time.", new String[] {"day", "noon", "night", "midnight"},
+			24, true, TimeSetPayload::new, ResearchPanel::currentTimeStop);
+	private static final Slider WEATHER_SLIDER = new Slider("gui.journeymode.weather.", new String[] {"clear", "rain", "thunder"},
+			36, true, WeatherSetPayload::new, ResearchPanel::currentWeatherStop);
+	/** Mob spawning from 0x (none) through 1x (normal) to 10x around the player; each stop is its own number. */
+	private static final Slider MOB_SLIDER = new Slider(null, new String[] {"0x", "1x", "2x", "3x", "4x", "5x", "6x", "7x", "8x", "9x", "10x"},
+			7, false, MobSpawnSetPayload::new, client -> ResearchClientState.mobSpawns());
+	private static final Slider[] SLIDERS = {TIME_SLIDER, WEATHER_SLIDER, MOB_SLIDER};
+
+	static {
+		MOB_SLIDER.sparseLabels = true;
+	}
 	/** The current screen's search box, which is only shown and used while the item list is open. */
 	private static EditBox searchBox;
 
@@ -153,6 +234,9 @@ public final class ResearchPanel {
 		ScreenEvents.AFTER_INIT.register((client, screen, width, height) -> {
 			if (!(screen instanceof InventoryScreen inventory)) {
 				return;
+			}
+			for (Slider slider : SLIDERS) {
+				slider.resting = -1;
 			}
 			searchBox = new EditBox(client.font, 0, 0, GRID_COLUMNS * CELL, SEARCH_HEIGHT, Component.translatable(KEY + "search"));
 			searchBox.setHint(Component.translatable(KEY + "search").withStyle(ChatFormatting.DARK_GRAY));
@@ -176,12 +260,28 @@ public final class ResearchPanel {
 				boolean swallow = swallowRelease;
 				swallowRelease = false;
 				draggingScrollbar = false;
+				for (Slider slider : SLIDERS) {
+					if (slider.dragging) {
+						slider.dragging = false;
+						slider.resting = slider.stop;
+						if (canUse(client, slider)) {
+							ClientPlayNetworking.send(slider.payload.apply(slider.stop));
+							client.getSoundManager().play(SimpleSoundInstance.forUI(SoundEvents.UI_BUTTON_CLICK, 1.0F));
+						}
+					}
+				}
 				return !swallow;
 			});
 			ScreenMouseEvents.allowMouseDrag(screen).register((s, event, horizontal, vertical) -> {
 				if (draggingScrollbar) {
 					scrollTo(inventory, event.y());
 					return false;
+				}
+				for (Slider slider : SLIDERS) {
+					if (slider.dragging) {
+						slider.stop = stopAt(slider, inventory, event.x());
+						return false;
+					}
 				}
 				return true;
 			});
@@ -258,12 +358,21 @@ public final class ResearchPanel {
 
 	/** The top of the button for a mode: research first, the item list under it. */
 	private static int buttonY(AbstractContainerScreen<?> screen, Mode forMode) {
-		return ((AbstractContainerScreenAccessor) screen).journeymode$topPos() + 4 + (forMode == Mode.ITEMS ? BUTTON_SPACING : 0);
+		int slot = forMode == Mode.GOD ? 5 : forMode == Mode.MOBS ? 4 : forMode == Mode.WEATHER ? 3 : forMode == Mode.TIME ? 2
+				: forMode == Mode.ITEMS ? 1 : 0;
+		return buttonsTop(screen) + slot * BUTTON_SPACING;
 	}
 
-	/** The trash slot sits in the same column as the buttons, under the item list button. */
+	/** The top of the first button: the whole column, the tab buttons and the trash slot under them, is centred vertically on the inventory. */
+	private static int buttonsTop(AbstractContainerScreen<?> screen) {
+		AbstractContainerScreenAccessor a = (AbstractContainerScreenAccessor) screen;
+		int columnHeight = TAB_BUTTONS * BUTTON_SPACING + BUTTON_SIZE;
+		return a.journeymode$topPos() + (a.journeymode$imageHeight() - columnHeight) / 2;
+	}
+
+	/** The trash slot sits in the same column as the buttons, right under the last one. */
 	private static int trashY(AbstractContainerScreen<?> screen) {
-		return ((AbstractContainerScreenAccessor) screen).journeymode$topPos() + 4 + 2 * BUTTON_SPACING;
+		return buttonsTop(screen) + TAB_BUTTONS * BUTTON_SPACING;
 	}
 
 	private static int panelX(AbstractContainerScreen<?> screen) {
@@ -277,7 +386,8 @@ public final class ResearchPanel {
 	}
 
 	private static int panelHeight() {
-		return mode == Mode.ITEMS ? ITEMS_HEIGHT : RESEARCH_HEIGHT;
+		return mode == Mode.ITEMS ? ITEMS_HEIGHT : openSlider() != null
+				? (canUse(Minecraft.getInstance(), openSlider()) ? SLIDER_HEIGHT : SLIDER_HEIGHT_WITH_NOTE) : RESEARCH_HEIGHT;
 	}
 
 	private static boolean inside(double mx, double my, int x, int y, int w, int h) {
@@ -353,7 +463,7 @@ public final class ResearchPanel {
 	// ---------------------------------------------------------------- drawing
 
 	/** A filled rectangle with its corners cut off {@code cut} pixels, so edges look worn rather than sharp. */
-	private static void chamfer(GuiGraphicsExtractor graphics, int x, int y, int w, int h, int cut, int color) {
+	static void chamfer(GuiGraphicsExtractor graphics, int x, int y, int w, int h, int cut, int color) {
 		for (int i = 0; i < cut; i++) {
 			int inset = cut - i;
 			graphics.fill(x + inset, y + i, x + w - inset, y + i + 1, color);
@@ -363,7 +473,7 @@ public final class ResearchPanel {
 	}
 
 	/** A sunken slot: a dark edge on the top and left, a lit edge on the bottom and right, and a dark fill. */
-	private static void recess(GuiGraphicsExtractor graphics, int x, int y, int w, int h) {
+	static void recess(GuiGraphicsExtractor graphics, int x, int y, int w, int h) {
 		graphics.fill(x, y, x + w, y + h, ACCENT_DARK);
 		graphics.fill(x, y, x + w - 1, y + h - 1, PANEL_OUTER);
 		graphics.fill(x + 1, y + 1, x + w - 1, y + h - 1, SLOT_FILL);
@@ -391,7 +501,7 @@ public final class ResearchPanel {
 	private static void extract(Minecraft client, InventoryScreen screen, GuiGraphicsExtractor graphics, int mouseX, int mouseY) {
 		Font font = client.font;
 		// With the recipe book open, everything is hidden (and ignores clicks) until it is closed again.
-		if (recipeBookOpen(screen)) {
+		if (recipeBookOpen(screen) || !ResearchClientState.journeyEnabled()) {
 			searchBox.visible = false;
 			searchBox.active = false;
 			searchBox.setFocused(false);
@@ -401,6 +511,10 @@ public final class ResearchPanel {
 		scrollRow = Math.clamp(scrollRow, 0, maxScrollRow());
 		drawButton(font, screen, graphics, mouseX, mouseY, Mode.RESEARCH, "R", RESEARCH_ICON, "title");
 		drawButton(font, screen, graphics, mouseX, mouseY, Mode.ITEMS, "I", ITEMS_ICON, "items_title");
+		drawButton(font, screen, graphics, mouseX, mouseY, Mode.TIME, "T", null, "time_title");
+		drawButton(font, screen, graphics, mouseX, mouseY, Mode.WEATHER, "W", WEATHER_ICON, "weather_title");
+		drawButton(font, screen, graphics, mouseX, mouseY, Mode.MOBS, "M", null, "mobs_title");
+		drawButton(font, screen, graphics, mouseX, mouseY, Mode.GOD, "G", GOD_ICON, "god_title");
 		drawTrash(font, screen, graphics, mouseX, mouseY);
 
 		// The search box only exists while the item list is open.
@@ -425,11 +539,13 @@ public final class ResearchPanel {
 		graphics.fill(px + 4, py + 1, px + PANEL_WIDTH - 4, py + 2, BRASS_LIGHT);
 		gear(graphics, px + 5, py + 6);
 		gear(graphics, px + PANEL_WIDTH - 12, py + 6);
-		graphics.centeredText(font, Component.translatable(KEY + (mode == Mode.ITEMS ? "items_title" : "title")),
+		graphics.centeredText(font, Component.translatable(KEY + (mode == Mode.ITEMS ? "items_title" : mode == Mode.TIME ? "time_title" : mode == Mode.WEATHER ? "weather_title" : mode == Mode.MOBS ? "mobs_title" : "title")),
 				px + PANEL_WIDTH / 2, py + 7, ACCENT);
 
 		if (mode == Mode.RESEARCH) {
 			extractResearch(font, screen, graphics, mouseX, mouseY, px, py);
+		} else if (openSlider() != null) {
+			extractSlider(client, openSlider(), graphics, px, py);
 		} else {
 			searchBox.setX(gridX(screen));
 			searchBox.setY(py + SEARCH_OFFSET_Y);
@@ -447,18 +563,23 @@ public final class ResearchPanel {
 			Mode forMode, String mark, Icon icon, String tooltipKey) {
 		int bx = buttonX(screen);
 		int by = buttonY(screen, forMode);
-		boolean active = mode == forMode;
+		// The God Mode button is a switch, so it looks pressed while God Mode is on; the others while their panel is open.
+		boolean active = forMode == Mode.GOD ? ResearchClientState.godMode() : mode == forMode;
 		plate(graphics, bx, by, BUTTON_SIZE, active ? ACCENT_DARK : PANEL_INNER);
 		if (icon != null) {
 			graphics.blit(RenderPipelines.GUI_TEXTURED, icon.texture(), bx + (BUTTON_SIZE - icon.drawWidth()) / 2,
 					by + (BUTTON_SIZE - icon.drawHeight()) / 2, icon.u(), icon.v(), icon.drawWidth(), icon.drawHeight(),
 					icon.width(), icon.height(), icon.textureSize(), icon.textureSize());
+		} else if (forMode == Mode.TIME || forMode == Mode.MOBS) {
+			graphics.fakeItem(new ItemStack(forMode == Mode.TIME ? Items.CLOCK : Items.CREEPER_HEAD), bx + 2, by + 2);
 		} else {
 			graphics.centeredText(font, mark, bx + BUTTON_SIZE / 2, by + 6, active ? TEXT : ACCENT);
 		}
 		if (inside(mouseX, mouseY, bx, by, BUTTON_SIZE, BUTTON_SIZE)) {
 			graphics.fill(bx, by, bx + BUTTON_SIZE, by + BUTTON_SIZE, HOVER);
-			graphics.setTooltipForNextFrame(font, Component.translatable(KEY + tooltipKey), mouseX, mouseY);
+			graphics.setTooltipForNextFrame(font, forMode == Mode.GOD
+					? Component.translatable("gui.journeymode.god.state", Component.translatable(active ? "options.on" : "options.off"))
+					: Component.translatable(KEY + tooltipKey), mouseX, mouseY);
 		}
 	}
 
@@ -478,6 +599,102 @@ public final class ResearchPanel {
 		}
 		if (inside(mouseX, mouseY, bx, by, BUTTON_SIZE, BUTTON_SIZE)) {
 			graphics.fill(bx, by, bx + BUTTON_SIZE, by + BUTTON_SIZE, HOVER);
+		}
+	}
+
+	// ---------------------------------------------------------------- sliders (time and weather)
+
+	private static int trackX(AbstractContainerScreen<?> screen) {
+		return panelX(screen) + SLIDER_TRACK_OFFSET_X;
+	}
+
+	private static int trackY(AbstractContainerScreen<?> screen) {
+		return panelY(screen) + SLIDER_TRACK_OFFSET_Y;
+	}
+
+	/** The slider shown by the open panel, or null. */
+	private static Slider openSlider() {
+		return mode == Mode.TIME ? TIME_SLIDER : mode == Mode.WEATHER ? WEATHER_SLIDER : mode == Mode.MOBS ? MOB_SLIDER : null;
+	}
+
+	/** Whether this player may move the slider: anyone, unless it is one for operators only. */
+	private static boolean canUse(Minecraft client, Slider slider) {
+		return !slider.opOnly || isOp(client);
+	}
+
+	/** Whether this player is an operator, which is what the server requires to change the time or weather. */
+	private static boolean isOp(Minecraft client) {
+		return client.player != null && client.player.permissions().hasPermission(Permissions.COMMANDS_GAMEMASTER);
+	}
+
+	/** The slider's stop nearest the mouse. */
+	private static int stopAt(Slider slider, AbstractContainerScreen<?> screen, double mx) {
+		return Math.clamp(Math.round((mx - trackX(screen)) / slider.spacing), 0, slider.stops() - 1);
+	}
+
+	/** The stop for the weather now: clear, rain or thunder. */
+	private static int currentWeatherStop(Minecraft client) {
+		return client.level == null ? 0 : client.level.isThundering() ? 2 : client.level.isRaining() ? 1 : 0;
+	}
+
+	/** The stop whose time of day is nearest the world's current time. */
+	private static int currentTimeStop(Minecraft client) {
+		if (client.level == null) {
+			return 0;
+		}
+		long now = Math.floorMod(client.level.getOverworldClockTime(), 24000L);
+		int best = 0;
+		long bestDistance = Long.MAX_VALUE;
+		for (int i = 0; i < TIME_TICKS.length; i++) {
+			long distance = Math.abs(now - TIME_TICKS[i]);
+			distance = Math.min(distance, 24000L - distance);
+			if (distance < bestDistance) {
+				bestDistance = distance;
+				best = i;
+			}
+		}
+		return best;
+	}
+
+	/**
+	 * A slider panel: a brass knob on a groove with a few stops. Operators drag it and the change is
+	 * made when they let go. Everyone else sees it dimmed.
+	 */
+	private static void extractSlider(Minecraft client, Slider slider, GuiGraphicsExtractor graphics, int px, int py) {
+		Font font = client.font;
+		boolean op = canUse(client, slider);
+		int trackX = px + SLIDER_TRACK_OFFSET_X;
+		int trackY = py + SLIDER_TRACK_OFFSET_Y;
+		if (slider.resting < 0) {
+			slider.resting = slider.current.applyAsInt(client);
+		}
+		int stop = slider.dragging ? slider.stop : slider.resting;
+
+		recess(graphics, trackX - 6, trackY - 3, slider.width() + 12, 7);
+		for (int i = 0; i < slider.stops(); i++) {
+			int x = trackX + i * slider.spacing;
+			graphics.fill(x, trackY - 5, x + 1, trackY + 6, op ? ACCENT : ACCENT_DARK);
+			// With many stops, only every other label (the even numbers) is shown, plus the one the knob is on.
+			if (slider.sparseLabels && i % 2 == 0 && i != stop) {
+				continue;
+			}
+			// Labels alternate above and below the groove so the longer names never run into each other.
+			int labelY = i % 2 == 0 ? trackY - 17 : trackY + 9;
+			graphics.centeredText(font, slider.keyPrefix == null ? Component.literal(slider.keys[i])
+					: Component.translatable(slider.keyPrefix + slider.keys[i]), x, labelY,
+					i == stop ? (op ? ACCENT : TEXT_DIM) : TEXT_DIM);
+		}
+
+		int knobX = trackX + stop * slider.spacing;
+		int fill = op ? ACCENT : ACCENT_DARK;
+		chamfer(graphics, knobX - 4, trackY - 8, 9, 16, 1, PANEL_OUTER);
+		graphics.fill(knobX - 3, trackY - 7, knobX + 4, trackY + 7, fill);
+		graphics.fill(knobX - 3, trackY - 7, knobX + 4, trackY - 6, op ? BRASS_LIGHT : fill);
+		graphics.fill(knobX, trackY - 5, knobX + 1, trackY + 5, PANEL_OUTER);
+
+		if (!op) {
+			graphics.centeredText(font, Component.translatable("gui.journeymode.time.ops_only"), px + PANEL_WIDTH / 2,
+					py + SLIDER_HEIGHT_WITH_NOTE - 13, 0xFFD9835A);
 		}
 	}
 
@@ -518,8 +735,6 @@ public final class ResearchPanel {
 					: Component.literal(done + " / " + needed);
 			graphics.centeredText(font, status, px + PANEL_WIDTH / 2, textY, researched ? DONE : TEXT);
 		}
-		graphics.centeredText(font, Component.translatable(KEY + "total", ResearchClientState.researchedTotal()),
-				px + PANEL_WIDTH / 2, py + RESEARCH_HEIGHT - 15, TEXT_DIM);
 	}
 
 	private static void extractItems(Minecraft client, InventoryScreen screen, GuiGraphicsExtractor graphics, int mouseX, int mouseY,
@@ -611,13 +826,22 @@ public final class ResearchPanel {
 
 	/** Handles a click; returns true if the panels used it, so the inventory should ignore it. */
 	private static boolean click(Minecraft client, InventoryScreen screen, double mx, double my, int button, boolean shift) {
-		if (recipeBookOpen(screen)) {
+		if (recipeBookOpen(screen) || !ResearchClientState.journeyEnabled()) {
 			return false;
 		}
-		for (Mode forMode : new Mode[] {Mode.RESEARCH, Mode.ITEMS}) {
+		for (Mode forMode : new Mode[] {Mode.RESEARCH, Mode.ITEMS, Mode.TIME, Mode.WEATHER, Mode.MOBS, Mode.GOD}) {
 			if (inside(mx, my, buttonX(screen), buttonY(screen, forMode), BUTTON_SIZE, BUTTON_SIZE)) {
 				if (button == 0) {
-					mode = mode == forMode ? Mode.NONE : forMode;
+					if (forMode == Mode.GOD) {
+						// God Mode has no panel: the button itself is the switch.
+						ClientPlayNetworking.send(new GodModeTogglePayload());
+					} else {
+						mode = mode == forMode ? Mode.NONE : forMode;
+						// The sliders start from the world's current time and weather each time a panel is opened.
+						for (Slider slider : SLIDERS) {
+							slider.resting = -1;
+						}
+					}
 					client.getSoundManager().play(SimpleSoundInstance.forUI(SoundEvents.UI_BUTTON_CLICK, 1.0F));
 				}
 				return true;
@@ -655,6 +879,13 @@ public final class ResearchPanel {
 				ClientPlayNetworking.send(new ResearchCarriedPayload());
 				client.getSoundManager().play(SimpleSoundInstance.forUI(SoundEvents.UI_BUTTON_CLICK, 1.0F));
 			}
+		} else if (openSlider() != null) {
+			// Operators drag the slider and the change is made when they let go.
+			Slider slider = openSlider();
+			if (button == 0 && canUse(client, slider) && inside(mx, my, trackX(screen) - 8, trackY(screen) - 8, slider.width() + 16, 16)) {
+				slider.dragging = true;
+				slider.stop = stopAt(slider, screen, mx);
+			}
 		} else if (inside(mx, my, scrollbarX(screen) - 1, gridY(screen), SCROLLBAR_WIDTH + 2, GRID_ROWS * CELL)) {
 			// Click or drag the scroll bar to move the list.
 			if (button == 0) {
@@ -680,7 +911,7 @@ public final class ResearchPanel {
 
 	/** Scrolls the item list when the mouse is over its panel; returns true if the scroll was used. */
 	private static boolean scroll(InventoryScreen screen, double mx, double my, double amount) {
-		if (recipeBookOpen(screen) || mode != Mode.ITEMS || !inside(mx, my, panelX(screen), panelY(screen), PANEL_WIDTH, panelHeight())) {
+		if (recipeBookOpen(screen) || !ResearchClientState.journeyEnabled() || mode != Mode.ITEMS || !inside(mx, my, panelX(screen), panelY(screen), PANEL_WIDTH, panelHeight())) {
 			return false;
 		}
 		if (amount != 0) {

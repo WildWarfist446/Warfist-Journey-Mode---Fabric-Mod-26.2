@@ -1,0 +1,25 @@
+{
+  "parent": "journeymode:welcome",
+  "display": {
+    "icon": {
+      "id": "minecraft:trident"
+    },
+    "title": {
+      "translate": "advancement.journeymode.weather_wizard.title"
+    },
+    "description": {
+      "translate": "advancement.journeymode.weather_wizard.description"
+    },
+    "frame": "task"
+  },
+  "criteria": {
+    "done": {
+      "trigger": "minecraft:impossible"
+    }
+  },
+  "requirements": [
+    [
+      "done"
+    ]
+  ]
+}

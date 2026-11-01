@@ -1,0 +1,26 @@
+{
+  "display": {
+    "icon": {
+      "id": "minecraft:knowledge_book"
+    },
+    "title": {
+      "translate": "advancement.journeymode.welcome.title"
+    },
+    "description": {
+      "translate": "advancement.journeymode.welcome.description"
+    },
+    "frame": "task",
+    "background": "minecraft:gui/advancements/backgrounds/adventure",
+    "show_toast": true
+  },
+  "criteria": {
+    "done": {
+      "trigger": "minecraft:impossible"
+    }
+  },
+  "requirements": [
+    [
+      "done"
+    ]
+  ]
+}

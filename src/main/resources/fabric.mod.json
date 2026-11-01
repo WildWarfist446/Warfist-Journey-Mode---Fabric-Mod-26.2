@@ -22,6 +22,7 @@
 		]
 	},
 	"mixins": [
+		"journeymode.mixins.json",
 		{
 			"config": "journeymode.client.mixins.json",
 			"environment": "client"

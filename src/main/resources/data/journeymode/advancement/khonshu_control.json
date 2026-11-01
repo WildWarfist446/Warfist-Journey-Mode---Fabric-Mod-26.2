@@ -1,0 +1,25 @@
+{
+  "parent": "journeymode:welcome",
+  "display": {
+    "icon": {
+      "id": "minecraft:clock"
+    },
+    "title": {
+      "translate": "advancement.journeymode.khonshu_control.title"
+    },
+    "description": {
+      "translate": "advancement.journeymode.khonshu_control.description"
+    },
+    "frame": "task"
+  },
+  "criteria": {
+    "done": {
+      "trigger": "minecraft:impossible"
+    }
+  },
+  "requirements": [
+    [
+      "done"
+    ]
+  ]
+}

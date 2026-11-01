@@ -1,0 +1,25 @@
+{
+  "parent": "journeymode:welcome",
+  "display": {
+    "icon": {
+      "id": "minecraft:writable_book"
+    },
+    "title": {
+      "translate": "advancement.journeymode.researcher.title"
+    },
+    "description": {
+      "translate": "advancement.journeymode.researcher.description"
+    },
+    "frame": "task"
+  },
+  "criteria": {
+    "done": {
+      "trigger": "minecraft:impossible"
+    }
+  },
+  "requirements": [
+    [
+      "done"
+    ]
+  ]
+}

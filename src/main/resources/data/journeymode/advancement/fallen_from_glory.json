@@ -1,0 +1,25 @@
+{
+  "parent": "journeymode:welcome",
+  "display": {
+    "icon": {
+      "id": "minecraft:totem_of_undying"
+    },
+    "title": {
+      "translate": "advancement.journeymode.fallen_from_glory.title"
+    },
+    "description": {
+      "translate": "advancement.journeymode.fallen_from_glory.description"
+    },
+    "frame": "task"
+  },
+  "criteria": {
+    "done": {
+      "trigger": "minecraft:impossible"
+    }
+  },
+  "requirements": [
+    [
+      "done"
+    ]
+  ]
+}

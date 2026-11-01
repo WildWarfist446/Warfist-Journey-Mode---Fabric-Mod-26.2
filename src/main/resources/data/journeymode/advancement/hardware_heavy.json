@@ -1,0 +1,25 @@
+{
+  "parent": "journeymode:researcher",
+  "display": {
+    "icon": {
+      "id": "minecraft:diamond_sword"
+    },
+    "title": {
+      "translate": "advancement.journeymode.hardware_heavy.title"
+    },
+    "description": {
+      "translate": "advancement.journeymode.hardware_heavy.description"
+    },
+    "frame": "challenge"
+  },
+  "criteria": {
+    "done": {
+      "trigger": "minecraft:impossible"
+    }
+  },
+  "requirements": [
+    [
+      "done"
+    ]
+  ]
+}

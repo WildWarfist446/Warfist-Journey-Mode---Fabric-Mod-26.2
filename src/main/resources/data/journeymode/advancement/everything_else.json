@@ -1,0 +1,25 @@
+{
+  "parent": "journeymode:researcher",
+  "display": {
+    "icon": {
+      "id": "minecraft:redstone"
+    },
+    "title": {
+      "translate": "advancement.journeymode.everything_else.title"
+    },
+    "description": {
+      "translate": "advancement.journeymode.everything_else.description"
+    },
+    "frame": "challenge"
+  },
+  "criteria": {
+    "done": {
+      "trigger": "minecraft:impossible"
+    }
+  },
+  "requirements": [
+    [
+      "done"
+    ]
+  ]
+}
