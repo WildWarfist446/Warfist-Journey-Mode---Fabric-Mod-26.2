@@ -2,8 +2,9 @@
 	"schemaVersion": 1,
 	"id": "journeymode",
 	"version": "${version}",
-	"name": "Journey Mode",
+	"name": "Minecraft Journey Mode",
 	"description": "A Journey Mode for Minecraft.",
+	"icon": "assets/journeymode/icon.png",
 	"contact": {
 		"homepage": "https://github.com/WildWarfist446/Minecraft-Journey-Mode---Fabric-Mod-26.2",
 		"sources": "https://github.com/WildWarfist446/Minecraft-Journey-Mode---Fabric-Mod-26.2"
