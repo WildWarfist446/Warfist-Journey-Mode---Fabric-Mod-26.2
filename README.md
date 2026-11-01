@@ -13,7 +13,7 @@ Journey Mode is chosen when a world is created and cannot be changed afterwards.
 
 ## Features
 
-Open your inventory. A column of six icon buttons and a trash slot sits on its left edge, centred on the inventory and clear of JEI on the right. Most buttons open a panel, and only one is open at a time. Everything has a steampunk look: brass and bronze plates over blackened iron, small cogs on the title bars, sunken item slots, and a brass rod scroll bar. It is all drawn in code, so the only textures are the button icons. In a Journey Mode world the survival inventory and its recipe book get the same look (a plate with cogs by the "Crafting" title, sunken slots, a recessed window for the player model, brass tabs and recipe boxes, and a new recipe book button). Everything hides while the recipe book is open and comes back when it closes.
+Open your inventory. A column of six icon buttons and a trash slot sits on its left edge, centred on the inventory and clear of JEI on the right. Most buttons open a panel, and only one is open at a time. It all has a steampunk look, and in a Journey Mode world your inventory and recipe book match it. Everything hides while the recipe book is open and comes back when it closes.
 
 ### Research (first button)
 - Pick up a stack with your cursor and click the panel. The items are used up and count toward that item's research cost.
@@ -77,7 +77,7 @@ A Journey Mode advancement tab is added:
 ### Other mods
 Everything is keyed by the item registry, so items added by other mods are researched and listed like vanilla ones, and research cost uses each item's own stack size. Progress for items from a removed mod is kept and returns if the mod is reinstalled. The advancements count vanilla items only.
 
-Tested with a modpack of about 90 mods. **Trinkets** (4.1.x) is supported: in a Journey Mode world its slots are drawn sunken like the rest of the inventory, slots it keeps hidden leave no empty boxes behind, and cogs that would sit under one of its slots are left out. Its side panels and tabs keep their own look. This works through optional patches that are skipped if Trinkets is missing or its code differs, so other versions simply keep Trinkets' grey slot squares.
+Tested with a modpack of about 90 mods. **Trinkets** (4.1.x) is supported, and its extra slots fit in with the inventory's look. Its side panels and tabs keep their own look. The support is optional, and other versions of Trinkets just keep their normal slot look.
 
 ## Requirements
 
