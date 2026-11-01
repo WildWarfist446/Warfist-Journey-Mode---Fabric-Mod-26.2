@@ -26,6 +26,26 @@ public final class InventoryTheme {
 	private InventoryTheme() {
 	}
 
+	/** Whether the survival inventory is being drawn in the steampunk look right now. */
+	public static boolean themesInventory() {
+		return themesRecipeBook();
+	}
+
+	/** Draws a sunken slot where another mod would draw the game's grey slot square. */
+	public static void drawSunkenSlot(GuiGraphicsExtractor graphics, int x, int y, int width, int height) {
+		ResearchPanel.recess(graphics, x, y, width, height);
+	}
+
+	/** Whether a cog drawn at (x, y) would sit under one of the inventory's slots, which other mods can add to the empty space. */
+	private static boolean overlapsSlot(InventoryScreen screen, int x, int y) {
+		for (Slot slot : screen.getMenu().slots) {
+			if (slot.isActive() && x < slot.x + 17 && x + 7 > slot.x - 1 && y < slot.y + 17 && y + 7 > slot.y - 1) {
+				return true;
+			}
+		}
+		return false;
+	}
+
 	/** Whether the steampunk look applies to the recipe book: in a Journey Mode world, beside the survival inventory only. */
 	public static boolean themesRecipeBook() {
 		return ResearchClientState.journeyEnabled() && Minecraft.getInstance().gui.screen() instanceof InventoryScreen;
@@ -114,13 +134,22 @@ public final class InventoryTheme {
 		ResearchPanel.recess(graphics, x + MODEL_X, y + MODEL_Y, MODEL_WIDTH, MODEL_HEIGHT);
 
 		// Every slot of the inventory (armor, crafting, result, off hand, backpack and hotbar) gets a sunken square.
+		// Slots another mod keeps hidden until you hover something (like Trinkets' extra slots) are skipped, or they
+		// would leave empty boxes behind.
 		for (Slot slot : screen.getMenu().slots) {
-			ResearchPanel.recess(graphics, x + slot.x - 1, y + slot.y - 1, 18, 18);
+			if (slot.isActive()) {
+				ResearchPanel.recess(graphics, x + slot.x - 1, y + slot.y - 1, 18, 18);
+			}
 		}
 
 		// A cog on each side of the "Crafting" title, which starts at x 97, y 8 and is about 38 pixels wide.
-		ResearchPanel.gear(graphics, x + 87, y + 6);
-		ResearchPanel.gear(graphics, x + 141, y + 6);
+		// A cog that would end up under a slot another mod has added is left out.
+		if (!overlapsSlot(screen, 87, 6)) {
+			ResearchPanel.gear(graphics, x + 87, y + 6);
+		}
+		if (!overlapsSlot(screen, 141, 6)) {
+			ResearchPanel.gear(graphics, x + 141, y + 6);
+		}
 
 		// The crafting arrow, between the crafting grid and its result.
 		for (int i = 0; i < 4; i++) {

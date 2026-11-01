@@ -26,6 +26,10 @@
 		{
 			"config": "journeymode.client.mixins.json",
 			"environment": "client"
+		},
+		{
+			"config": "journeymode.compat.mixins.json",
+			"environment": "client"
 		}
 	],
 	"depends": {

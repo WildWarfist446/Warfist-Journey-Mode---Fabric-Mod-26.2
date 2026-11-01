@@ -1,0 +1,12 @@
+{
+	"required": false,
+	"package": "com.journeymode.client.mixin.compat",
+	"compatibilityLevel": "JAVA_25",
+	"client": [
+		"TrinketScreenManagerMixin",
+		"TrinketsBackendMixin"
+	],
+	"injectors": {
+		"defaultRequire": 0
+	}
+}
