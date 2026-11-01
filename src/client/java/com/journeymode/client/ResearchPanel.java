@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 
+import com.journeymode.JourneyMode;
 import com.journeymode.client.mixin.AbstractContainerScreenAccessor;
 import com.journeymode.network.RequestItemPayload;
 import com.journeymode.network.ResearchCarriedPayload;
@@ -23,6 +24,7 @@ import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.client.gui.screens.inventory.InventoryScreen;
+import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.client.resources.sounds.SimpleSoundInstance;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
@@ -82,6 +84,16 @@ public final class ResearchPanel {
 	private static final int SEARCH_HEIGHT = 14;
 
 	private static final String KEY = "gui.journeymode.research.";
+
+	/**
+	 * A button icon: the part of a square texture to draw. The art is a small picture in the middle
+	 * of a larger canvas, so only that part (u, v, width, height) is drawn.
+	 */
+	private record Icon(Identifier texture, int textureSize, int u, int v, int width, int height) {
+	}
+
+	/** The research button's icon, sprites/research-menu-icon.png: a 10 x 12 picture on a 32 x 32 canvas. */
+	private static final Icon RESEARCH_ICON = new Icon(JourneyMode.id("textures/gui/research_icon.png"), 32, 11, 8, 10, 12);
 
 	private static Mode mode = Mode.NONE;
 	/** The first visible row of the item list. */
@@ -245,8 +257,8 @@ public final class ResearchPanel {
 	private static void extract(Minecraft client, InventoryScreen screen, GuiGraphicsExtractor graphics, int mouseX, int mouseY) {
 		Font font = client.font;
 		scrollRow = Math.clamp(scrollRow, 0, maxScrollRow());
-		drawButton(font, screen, graphics, mouseX, mouseY, Mode.RESEARCH, "R", "title");
-		drawButton(font, screen, graphics, mouseX, mouseY, Mode.ITEMS, "I", "items_title");
+		drawButton(font, screen, graphics, mouseX, mouseY, Mode.RESEARCH, "R", RESEARCH_ICON, "title");
+		drawButton(font, screen, graphics, mouseX, mouseY, Mode.ITEMS, "I", null, "items_title");
 
 		// The search box only exists while the item list is open.
 		boolean listOpen = mode == Mode.ITEMS;
@@ -278,15 +290,27 @@ public final class ResearchPanel {
 		}
 	}
 
-	/** A toggle button: a flat square with a placeholder mark until the logos are made. */
+	/**
+	 * A toggle button: a flat square with an icon, or a placeholder letter until that button's icon
+	 * is made.
+	 *
+	 * @param icon the button's icon, or null to draw {@code mark} instead
+	 */
 	private static void drawButton(Font font, InventoryScreen screen, GuiGraphicsExtractor graphics, int mouseX, int mouseY,
-			Mode forMode, String mark, String tooltipKey) {
+			Mode forMode, String mark, Icon icon, String tooltipKey) {
 		int bx = buttonX(screen);
 		int by = buttonY(screen, forMode);
 		boolean active = mode == forMode;
 		graphics.fill(bx, by, bx + BUTTON_SIZE, by + BUTTON_SIZE, active ? ACCENT_DARK : PANEL_INNER);
 		graphics.outline(bx, by, BUTTON_SIZE, BUTTON_SIZE, ACCENT);
-		graphics.centeredText(font, mark, bx + BUTTON_SIZE / 2, by + 6, active ? TEXT : ACCENT);
+		if (icon != null) {
+			// Drawn at its own size (no scaling, so the pixels stay sharp), centered in the button.
+			graphics.blit(RenderPipelines.GUI_TEXTURED, icon.texture(), bx + (BUTTON_SIZE - icon.width()) / 2,
+					by + (BUTTON_SIZE - icon.height()) / 2, icon.u(), icon.v(), icon.width(), icon.height(),
+					icon.textureSize(), icon.textureSize());
+		} else {
+			graphics.centeredText(font, mark, bx + BUTTON_SIZE / 2, by + 6, active ? TEXT : ACCENT);
+		}
 		if (inside(mouseX, mouseY, bx, by, BUTTON_SIZE, BUTTON_SIZE)) {
 			graphics.fill(bx, by, bx + BUTTON_SIZE, by + BUTTON_SIZE, HOVER);
 			graphics.setTooltipForNextFrame(font, Component.translatable(KEY + tooltipKey), mouseX, mouseY);
