@@ -1,6 +1,10 @@
 package com.journeymode;
 
+import com.journeymode.research.ResearchManager;
+
 import net.fabricmc.api.ModInitializer;
+
+import net.minecraft.resources.Identifier;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -12,6 +16,11 @@ public class JourneyMode implements ModInitializer {
 
 	@Override
 	public void onInitialize() {
+		ResearchManager.initialize();
 		LOGGER.info("Journey Mode loaded");
+	}
+
+	public static Identifier id(String path) {
+		return Identifier.fromNamespaceAndPath(MOD_ID, path);
 	}
 }
