@@ -103,4 +103,4 @@ Layout:
 
 ## Status
 
-Early work in progress. See [TODO.md](TODO.md) for what is planned, including moving the tab rules into a config file, a reload command for the cost config, and remembering which panel was open.
+Version 1.0.0 is the first release. See [TODO.md](TODO.md) for what is planned, including moving the tab rules into a config file, a reload command for the cost config, and remembering which panel was open.
