@@ -1,0 +1,30 @@
+{
+	"schemaVersion": 1,
+	"id": "journeymode",
+	"version": "${version}",
+	"name": "Journey Mode",
+	"description": "A Journey Mode for Minecraft.",
+	"contact": {
+		"homepage": "https://github.com/WildWarfist446/Minecraft-Journey-Mode---Fabric-Mod-26.2",
+		"sources": "https://github.com/WildWarfist446/Minecraft-Journey-Mode---Fabric-Mod-26.2"
+	},
+	"authors": [
+		"Warfist"
+	],
+	"license": "CC0-1.0",
+	"environment": "*",
+	"entrypoints": {
+		"main": [
+			"com.journeymode.JourneyMode"
+		],
+		"client": [
+			"com.journeymode.client.JourneyModeClient"
+		]
+	},
+	"depends": {
+		"fabricloader": ">=0.19.5",
+		"minecraft": "~26.2",
+		"java": ">=25",
+		"fabric-api": "*"
+	}
+}
