@@ -64,10 +64,9 @@ public final class ResearchPanel {
 	private static final int SLOT_FILL = 0xFF111820;
 	private static final int HOVER = 0x40FFFFFF;
 
-	/** Big enough for the largest icon (23 x 25) at its real size. */
-	private static final int BUTTON_SIZE = 28;
+	private static final int BUTTON_SIZE = 20;
 	private static final int BUTTON_GAP = 2;
-	private static final int BUTTON_SPACING = 32;
+	private static final int BUTTON_SPACING = 24;
 	private static final int PANEL_GAP = 4;
 	/** The recipe book's width, including its border. */
 	private static final int RECIPE_BOOK_WIDTH = 148;
@@ -88,16 +87,20 @@ public final class ResearchPanel {
 
 	/**
 	 * A button icon: the part of a square texture to draw. The art is a small picture in the middle
-	 * of a larger canvas, so only that part (u, v, width, height) is drawn.
+	 * of a larger canvas, so only that part (u, v, width, height) is cut out, then drawn at
+	 * drawWidth x drawHeight (the same size for no scaling).
 	 */
-	private record Icon(Identifier texture, int textureSize, int u, int v, int width, int height) {
+	private record Icon(Identifier texture, int textureSize, int u, int v, int width, int height, int drawWidth, int drawHeight) {
 	}
 
-	/** The research button's icon, sprites/research-menu-icon.png: a 10 x 12 picture on a 32 x 32 canvas. */
-	private static final Icon RESEARCH_ICON = new Icon(JourneyMode.id("textures/gui/research_icon.png"), 32, 11, 8, 10, 12);
+	/** The research button's icon, sprites/research-menu-icon.png: a 10 x 12 picture on a 32 x 32 canvas, drawn as is. */
+	private static final Icon RESEARCH_ICON = new Icon(JourneyMode.id("textures/gui/research_icon.png"), 32, 11, 8, 10, 12, 10, 12);
 
-	/** The item list button's icon, sprites/item-menu-icon.png: a 23 x 25 picture on a 32 x 32 canvas. */
-	private static final Icon ITEMS_ICON = new Icon(JourneyMode.id("textures/gui/item_icon.png"), 32, 5, 3, 23, 25);
+	/**
+	 * The item list button's icon, sprites/item-menu-icon.png: a 23 x 25 picture on a 32 x 32 canvas,
+	 * drawn at about half size so it is close to the research icon's size.
+	 */
+	private static final Icon ITEMS_ICON = new Icon(JourneyMode.id("textures/gui/item_icon.png"), 32, 5, 3, 23, 25, 12, 13);
 
 	private static Mode mode = Mode.NONE;
 	/** The first visible row of the item list. */
@@ -308,10 +311,9 @@ public final class ResearchPanel {
 		graphics.fill(bx, by, bx + BUTTON_SIZE, by + BUTTON_SIZE, active ? ACCENT_DARK : PANEL_INNER);
 		graphics.outline(bx, by, BUTTON_SIZE, BUTTON_SIZE, ACCENT);
 		if (icon != null) {
-			// Drawn at its own size (no scaling, so the pixels stay sharp), centered in the button.
-			graphics.blit(RenderPipelines.GUI_TEXTURED, icon.texture(), bx + (BUTTON_SIZE - icon.width()) / 2,
-					by + (BUTTON_SIZE - icon.height()) / 2, icon.u(), icon.v(), icon.width(), icon.height(),
-					icon.textureSize(), icon.textureSize());
+			graphics.blit(RenderPipelines.GUI_TEXTURED, icon.texture(), bx + (BUTTON_SIZE - icon.drawWidth()) / 2,
+					by + (BUTTON_SIZE - icon.drawHeight()) / 2, icon.u(), icon.v(), icon.drawWidth(), icon.drawHeight(),
+					icon.width(), icon.height(), icon.textureSize(), icon.textureSize());
 		} else {
 			graphics.centeredText(font, mark, bx + BUTTON_SIZE / 2, by + 6, active ? TEXT : ACCENT);
 		}
