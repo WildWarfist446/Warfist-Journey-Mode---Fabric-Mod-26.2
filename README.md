@@ -5,7 +5,7 @@ sacrifice items to research them, then take as many copies of anything you have 
 
 ## Features
 
-Open your inventory. Two buttons sit on its left edge, so they stay clear of JEI on the right. Each opens a panel, and only one is open at a time.
+Open your inventory. Two icon buttons sit on its left edge, so they stay clear of JEI on the right. Each opens a panel, and only one is open at a time. The panels use an orange and brown colour scheme.
 
 ### Research (first button)
 - Pick up a stack with your cursor and click the panel. The items are used up and count toward that item's research cost.
@@ -22,6 +22,7 @@ Open your inventory. Two buttons sit on its left edge, so they stay clear of JEI
   - Same item on the cursor: left-click adds one, shift-click fills the stack, right-click removes one.
   - A click with a different item on your cursor does nothing, so you never lose a real item.
 - Hovering an item shows its normal tooltip and the name of the mod that added it.
+- Taking an item leaves it on your cursor, ready to place.
 - The server checks that an item is fully researched before giving it, so a modified client cannot take items it has not researched.
 
 ### Other mods
@@ -45,8 +46,9 @@ The built jar is in `build/libs`.
 
 Layout:
 - `src/main`: shared and server code. Research data (`research/`), network packets (`network/`).
-- `src/client`: the inventory panels (`ResearchPanel`), client copy of research progress (`ResearchClientState`), and a small mixin accessor to place the panels beside the inventory.
+- `src/client`: the inventory panels (`ResearchPanel`), client copy of research progress (`ResearchClientState`), research sounds (`ResearchSounds`), and a small mixin accessor to place the panels beside the inventory.
+- `sprites`: the source art (Aseprite files and PNGs) for the button icons. The in-game copies are in `src/main/resources/assets/journeymode/textures/gui`.
 
 ## Status
 
-Early work in progress. See [TODO.md](TODO.md) for what is planned, including logos for the panel buttons, category filters, and configurable research costs.
+Early work in progress. See [TODO.md](TODO.md) for what is planned, including category filters, configurable research costs, and testing with other mods.
