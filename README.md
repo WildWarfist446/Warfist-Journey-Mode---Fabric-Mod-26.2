@@ -3,6 +3,10 @@
 A Fabric mod for Minecraft 26.2 adding Terraria-Style Journey Mode to survival:
 sacrifice items to research them, then take as many copies of anything you have researched as you like.
 
+> **AI disclosure:** The code for this mod was written with the help of AI (Claude, by
+> Anthropic). All of the art (item sprites, the logo and the 3D crown models) was drawn by
+> hand by the mod's creators.
+
 ## Enabling Journey Mode
 
 Journey Mode is chosen when a world is created and cannot be changed afterwards.
