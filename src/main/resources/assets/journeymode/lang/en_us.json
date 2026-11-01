@@ -2,5 +2,8 @@
   "gui.journeymode.research.title": "Research",
   "gui.journeymode.research.hint": "Click here holding an item to research it",
   "gui.journeymode.research.researched": "Researched!",
-  "gui.journeymode.research.total": "Items researched: %s"
+  "gui.journeymode.research.total": "Items researched: %s",
+  "gui.journeymode.research.items_title": "Researched Items",
+  "gui.journeymode.research.items_hint": "Click: stack. Right-click: one. Shift-click: to inventory.",
+  "gui.journeymode.research.none_yet": "Nothing researched yet"
 }
