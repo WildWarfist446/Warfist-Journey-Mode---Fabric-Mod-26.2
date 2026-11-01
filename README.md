@@ -33,7 +33,7 @@ Open your inventory. A column of six icon buttons and a trash slot sits on its l
 - Sounds: adding items to an item's research plays the item pickup pop. Finishing an item plays a TNT explosion followed by a note block ding.
 
 ### Researched items (second button)
-- A scrolling grid of everything you have fully researched. A thin scroll bar on the right can be clicked or dragged, and the mouse wheel works too.
+- A scrolling grid of everything you have researched. Items you have started but not finished show greyed out, with how many more they need in the corner, and can't be taken yet. A thin scroll bar on the right can be clicked or dragged, and the mouse wheel works too.
 - Six tabs above the grid: All, Blocks, Tools & Combat, Materials, Food & Brewing, and Redstone & Misc. They match item tags (including the common `c:` tags other mods use) and what an item is, and an item can show in more than one tab. Search works inside the selected tab.
 - A search box at the top. Type words to match item names (`iron pick`), or start with `@` to filter by mod (`@create`).
 - Clicks work like the creative menu's item list:

@@ -24,6 +24,8 @@ import net.minecraft.world.item.ItemStack;
 public final class ResearchClientState {
 	private static Map<Identifier, Integer> progress = Map.of();
 	private static List<Item> researched = List.of();
+	/** The fully researched items and those that have been started but not finished, in the game's item order. */
+	private static List<Item> listed = List.of();
 	/** Whether the server has sent progress since this player joined. */
 	private static boolean synced;
 	private static boolean journeyEnabled;
@@ -110,6 +112,16 @@ public final class ResearchClientState {
 	/** Every fully researched item, in the game's item order. */
 	public static List<Item> researchedItems() {
 		return researched;
+	}
+
+	/** Every item with some research done, finished or not, in the game's item order. */
+	public static List<Item> listedItems() {
+		return listed;
+	}
+
+	/** How many more of the item must be sacrificed to finish researching it, or 0 if it is done. */
+	public static int remaining(Item item) {
+		return Math.max(0, ResearchCosts.required(item) - progress(item));
 	}
 
 }

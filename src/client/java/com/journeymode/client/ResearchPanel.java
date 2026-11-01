@@ -300,7 +300,7 @@ public final class ResearchPanel {
 
 	/** The researched items that match the search box, in the game's item order. */
 	private static List<Item> shownItems() {
-		List<Item> source = ResearchClientState.researchedItems();
+		List<Item> source = ResearchClientState.listedItems();
 		String query = searchText.strip().toLowerCase(Locale.ROOT);
 		if (source != shownSource || !query.equals(shownQuery) || category != shownCategory) {
 			shownSource = source;
@@ -810,7 +810,7 @@ public final class ResearchPanel {
 
 		if (items.isEmpty()) {
 			// Either nothing is researched yet, or nothing matches the search.
-			String message = ResearchClientState.researchedItems().isEmpty() ? "none_yet" : "no_matches";
+			String message = ResearchClientState.listedItems().isEmpty() ? "none_yet" : "no_matches";
 			int y = gy + 20;
 			for (FormattedCharSequence line : font.split(Component.translatable(KEY + message), GRID_COLUMNS * CELL - 12)) {
 				graphics.centeredText(font, line, gx + GRID_COLUMNS * CELL / 2, y, TEXT_DIM);

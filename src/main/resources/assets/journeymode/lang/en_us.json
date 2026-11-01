@@ -5,6 +5,7 @@
   "gui.journeymode.research.items_title": "Researched Items",
   "gui.journeymode.research.none_yet": "Nothing researched yet",
   "gui.journeymode.research.no_matches": "No matching items",
+  "gui.journeymode.research.remaining": "%s more to research",
   "gui.journeymode.create.journey_mode": "Journey Mode: %s",
   "gui.journeymode.create.journey_mode.tooltip": "Research items to unlock them, then take as many as you like. This cannot be changed after the world is created.",
   "gui.journeymode.god.state": "God Mode: %s",
