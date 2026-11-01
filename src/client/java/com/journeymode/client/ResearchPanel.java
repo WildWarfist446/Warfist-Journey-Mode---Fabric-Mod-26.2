@@ -778,7 +778,14 @@ public final class ResearchPanel {
 				recess(graphics, x, y, CELL, CELL);
 				int index = (scrollRow + row) * GRID_COLUMNS + col;
 				if (index < items.size()) {
-					graphics.fakeItem(new ItemStack(items.get(index)), x + 1, y + 1);
+					Item item = items.get(index);
+					graphics.fakeItem(new ItemStack(item), x + 1, y + 1);
+					if (!ResearchClientState.isResearched(item)) {
+						// Started but not finished: dimmed, with how many more it needs in the corner like a stack count.
+						graphics.fill(x + 1, y + 1, x + CELL - 1, y + CELL - 1, 0xB0181009);
+						String remaining = String.valueOf(ResearchClientState.remaining(item));
+						graphics.text(font, remaining, x + CELL - 1 - font.width(remaining), y + CELL - 9, TEXT, true);
+					}
 					if (index == hovered) {
 						graphics.fill(x + 1, y + 1, x + CELL - 1, y + CELL - 1, HOVER);
 					}
@@ -822,6 +829,10 @@ public final class ResearchPanel {
 			// The item's usual tooltip, then the mod that added it.
 			ItemStack stack = new ItemStack(items.get(hovered));
 			List<Component> tooltip = new ArrayList<>(Screen.getTooltipFromItem(client, stack));
+			if (!ResearchClientState.isResearched(stack.getItem())) {
+				tooltip.add(Component.translatable(KEY + "remaining", ResearchClientState.remaining(stack.getItem()))
+						.withStyle(ChatFormatting.GOLD));
+			}
 			tooltip.add(Component.literal(modName(BuiltInRegistries.ITEM.getKey(stack.getItem()).getNamespace()))
 					.withStyle(ChatFormatting.BLUE, ChatFormatting.ITALIC));
 			graphics.setComponentTooltipForNextFrame(font, tooltip, mouseX, mouseY);
@@ -906,7 +917,8 @@ public final class ResearchPanel {
 			}
 		} else if (button >= 0 && button <= 2) {
 			int index = itemAt(screen, mx, my);
-			if (index >= 0) {
+			// Items that are only partly researched can't be taken yet.
+			if (index >= 0 && ResearchClientState.isResearched(shownItems().get(index))) {
 				Item item = shownItems().get(index);
 				ClientPlayNetworking.send(new RequestItemPayload(BuiltInRegistries.ITEM.getKey(item), button, shift));
 				client.getSoundManager().play(SimpleSoundInstance.forUI(SoundEvents.UI_BUTTON_CLICK, 1.0F));

@@ -68,6 +68,11 @@ public final class ResearchClientState {
 					.flatMap(java.util.Optional::stream)
 					.sorted(Comparator.comparingInt(BuiltInRegistries.ITEM::getId))
 					.toList();
+			listed = progress.entrySet().stream()
+					.map(entry -> BuiltInRegistries.ITEM.getOptional(entry.getKey()).filter(item -> entry.getValue() > 0))
+					.flatMap(java.util.Optional::stream)
+					.sorted(Comparator.comparingInt(BuiltInRegistries.ITEM::getId))
+					.toList();
 
 			// The first sync after joining just loads saved progress. Any later one that adds to it
 			// means items were just sacrificed: a celebration if that finished an item, a pop if not.
@@ -84,6 +89,7 @@ public final class ResearchClientState {
 		ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> {
 			progress = Map.of();
 			researched = List.of();
+			listed = List.of();
 			synced = false;
 			journeyEnabled = false;
 			godMode = false;
