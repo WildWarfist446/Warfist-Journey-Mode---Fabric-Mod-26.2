@@ -106,6 +106,8 @@ public final class ResearchPanel {
 	/** The first visible row of the item list. */
 	private static int scrollRow;
 	private static String searchText = "";
+	/** Whether the press of the mouse button now held was used by the panels, so its release must be ignored too. */
+	private static boolean swallowRelease;
 	/** The current screen's search box, which is only shown and used while the item list is open. */
 	private static EditBox searchBox;
 
@@ -134,8 +136,17 @@ public final class ResearchPanel {
 
 			ScreenEvents.afterBackground(screen).register((s, graphics, mouseX, mouseY, delta) ->
 					extract(client, inventory, graphics, mouseX, mouseY));
-			ScreenMouseEvents.allowMouseClick(screen).register((s, event) ->
-					!click(client, inventory, event.x(), event.y(), event.button(), event.hasShiftDown()));
+			ScreenMouseEvents.allowMouseClick(screen).register((s, event) -> {
+				swallowRelease = click(client, inventory, event.x(), event.y(), event.button(), event.hasShiftDown());
+				return !swallowRelease;
+			});
+			// Letting go of a button we used the press of would make the inventory throw away the item
+			// now on the cursor, because the panels are outside its window.
+			ScreenMouseEvents.allowMouseRelease(screen).register((s, event) -> {
+				boolean swallow = swallowRelease;
+				swallowRelease = false;
+				return !swallow;
+			});
 			ScreenMouseEvents.allowMouseScroll(screen).register((s, mouseX, mouseY, horizontal, vertical) ->
 					!scroll(inventory, mouseX, mouseY, vertical));
 		});
