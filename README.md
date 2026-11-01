@@ -13,7 +13,7 @@ Journey Mode is chosen when a world is created and cannot be changed afterwards.
 
 ## Features
 
-Open your inventory. A column of six icon buttons and a trash slot sits on its left edge, centred on the inventory and clear of JEI on the right. Most buttons open a panel, and only one is open at a time. Everything has a steampunk look: brass and bronze plates over blackened iron, small cogs on the title bars, sunken item slots, and a brass rod scroll bar. It is all drawn in code, so the only textures are the button icons. In a Journey Mode world the survival inventory itself gets the same look (a plate, sunken slots and a recessed window for the player model). Everything hides while the recipe book is open and comes back when it closes.
+Open your inventory. A column of six icon buttons and a trash slot sits on its left edge, centred on the inventory and clear of JEI on the right. Most buttons open a panel, and only one is open at a time. Everything has a steampunk look: brass and bronze plates over blackened iron, small cogs on the title bars, sunken item slots, and a brass rod scroll bar. It is all drawn in code, so the only textures are the button icons. In a Journey Mode world the survival inventory and its recipe book get the same look (a plate with cogs by the "Crafting" title, sunken slots, a recessed window for the player model, brass tabs and recipe boxes, and a new recipe book button). Everything hides while the recipe book is open and comes back when it closes.
 
 ### Research (first button)
 - Pick up a stack with your cursor and click the panel. The items are used up and count toward that item's research cost.

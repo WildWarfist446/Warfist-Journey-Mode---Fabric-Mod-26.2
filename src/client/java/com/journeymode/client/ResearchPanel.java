@@ -248,6 +248,12 @@ public final class ResearchPanel {
 			});
 			Screens.getWidgets(screen).add(searchBox);
 
+			// The recipe book button is drawn by the game, so ours goes over it once everything else is drawn.
+			ScreenEvents.afterExtract(screen).register((s, graphics, mouseX, mouseY, delta) -> {
+				if (ResearchClientState.journeyEnabled()) {
+					InventoryTheme.drawRecipeButton(client, inventory, graphics, mouseX, mouseY);
+				}
+			});
 			ScreenEvents.afterBackground(screen).register((s, graphics, mouseX, mouseY, delta) ->
 					extract(client, inventory, graphics, mouseX, mouseY));
 			ScreenMouseEvents.allowMouseClick(screen).register((s, event) -> {
@@ -488,7 +494,7 @@ public final class ResearchPanel {
 	}
 
 	/** Draws the {@link #GEAR} cog with its top left corner at (x, y). */
-	private static void gear(GuiGraphicsExtractor graphics, int x, int y) {
+	static void gear(GuiGraphicsExtractor graphics, int x, int y) {
 		for (int row = 0; row < GEAR.length; row++) {
 			for (int col = 0; col < GEAR[row].length(); col++) {
 				if (GEAR[row].charAt(col) == 'X') {

@@ -5,7 +5,10 @@
 	"client": [
 		"AbstractContainerScreenAccessor",
 		"GameTabMixin",
-		"InventoryScreenMixin"
+		"InventoryScreenMixin",
+		"RecipeBookComponentMixin",
+		"RecipeBookTabButtonMixin",
+		"RecipeButtonMixin"
 	],
 	"injectors": {
 		"defaultRequire": 1
