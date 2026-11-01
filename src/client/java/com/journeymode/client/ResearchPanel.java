@@ -22,8 +22,8 @@ import net.minecraft.util.FormattedCharSequence;
 import net.minecraft.world.item.ItemStack;
 
 /**
- * The research panel beside the survival inventory. A button on the inventory's right edge shows
- * or hides it. With an item on the cursor, click the panel to sacrifice it; the panel shows how
+ * The research panel beside the survival inventory, on the left so it stays clear of JEI on the
+ * right. A button on the inventory's left edge shows or hides it. With an item on the cursor, click the panel to sacrifice it; the panel shows how
  * far along that item is. Drawn with flat fills, no textures.
  */
 public final class ResearchPanel {
@@ -41,6 +41,8 @@ public final class ResearchPanel {
 	private static final int BUTTON_SIZE = 20;
 	private static final int BUTTON_GAP = 2;
 	private static final int PANEL_GAP = 4;
+	/** The recipe book's width, including its border. */
+	private static final int RECIPE_BOOK_WIDTH = 148;
 	private static final int PANEL_WIDTH = 112;
 	private static final int PANEL_HEIGHT = 112;
 
@@ -65,9 +67,19 @@ public final class ResearchPanel {
 
 	// ---------------------------------------------------------------- geometry
 
-	private static int buttonX(AbstractContainerScreen<?> screen) {
+	/**
+	 * The left edge of everything on the inventory's left: the inventory itself, or the recipe book
+	 * when it is open (it shifts the inventory right, and sits just left of it).
+	 */
+	private static int leftEdge(AbstractContainerScreen<?> screen) {
 		AbstractContainerScreenAccessor a = (AbstractContainerScreenAccessor) screen;
-		return a.journeymode$leftPos() + a.journeymode$imageWidth() + BUTTON_GAP;
+		int centered = (screen.width - a.journeymode$imageWidth()) / 2;
+		boolean recipeBookOpen = a.journeymode$leftPos() > centered;
+		return a.journeymode$leftPos() - (recipeBookOpen ? RECIPE_BOOK_WIDTH : 0);
+	}
+
+	private static int buttonX(AbstractContainerScreen<?> screen) {
+		return leftEdge(screen) - BUTTON_GAP - BUTTON_SIZE;
 	}
 
 	private static int buttonY(AbstractContainerScreen<?> screen) {
@@ -75,7 +87,7 @@ public final class ResearchPanel {
 	}
 
 	private static int panelX(AbstractContainerScreen<?> screen) {
-		return buttonX(screen) + BUTTON_SIZE + PANEL_GAP;
+		return buttonX(screen) - PANEL_GAP - PANEL_WIDTH;
 	}
 
 	private static int panelY(AbstractContainerScreen<?> screen) {
