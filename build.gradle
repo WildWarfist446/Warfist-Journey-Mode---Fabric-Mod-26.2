@@ -16,6 +16,13 @@ loom {
 			sourceSet sourceSets.client
 		}
 	}
+
+	runs {
+		// Without a cap the dev game can grow to about a quarter of the machine's RAM.
+		configureEach {
+			vmArgs "-Xmx3G"
+		}
+	}
 }
 
 dependencies {

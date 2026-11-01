@@ -4,7 +4,9 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 
+import com.journeymode.network.CostConfigPayload;
 import com.journeymode.network.ResearchSyncPayload;
+import com.journeymode.network.TrashSyncPayload;
 import com.journeymode.research.ResearchCosts;
 
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
@@ -13,6 +15,7 @@ import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.Identifier;
 import net.minecraft.world.item.Item;
+import net.minecraft.world.item.ItemStack;
 
 /** What the server last told this player about their research. */
 public final class ResearchClientState {
@@ -20,11 +23,16 @@ public final class ResearchClientState {
 	private static List<Item> researched = List.of();
 	/** Whether the server has sent progress since this player joined. */
 	private static boolean synced;
+	/** The stack in this player's trash slot, as the server last told us. */
+	private static ItemStack trash = ItemStack.EMPTY;
 
 	private ResearchClientState() {
 	}
 
 	public static void initialize() {
+		ClientPlayNetworking.registerGlobalReceiver(TrashSyncPayload.TYPE, (payload, context) -> trash = payload.stack());
+		ClientPlayNetworking.registerGlobalReceiver(CostConfigPayload.TYPE, (payload, context) ->
+				ResearchCosts.setRules(payload.rules()));
 		ClientPlayNetworking.registerGlobalReceiver(ResearchSyncPayload.TYPE, (payload, context) -> {
 			int before = total(progress);
 			int researchedBefore = researched.size();
@@ -51,6 +59,7 @@ public final class ResearchClientState {
 			progress = Map.of();
 			researched = List.of();
 			synced = false;
+			trash = ItemStack.EMPTY;
 			ResearchSounds.reset();
 		});
 	}
@@ -61,6 +70,10 @@ public final class ResearchClientState {
 
 	public static int progress(Item item) {
 		return progress.getOrDefault(BuiltInRegistries.ITEM.getKey(item), 0);
+	}
+
+	public static ItemStack trash() {
+		return trash;
 	}
 
 	public static boolean isResearched(Item item) {

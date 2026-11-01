@@ -1,8 +1,12 @@
 package com.journeymode.research;
 
+import com.journeymode.network.CostConfigPayload;
 import com.journeymode.network.RequestItemPayload;
 import com.journeymode.network.ResearchCarriedPayload;
+import com.journeymode.network.ResearchSlotPayload;
 import com.journeymode.network.ResearchSyncPayload;
+import com.journeymode.network.TrashClickPayload;
+import com.journeymode.network.TrashSyncPayload;
 
 import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
@@ -11,6 +15,7 @@ import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
@@ -23,27 +28,87 @@ public final class ResearchManager {
 	public static void initialize() {
 		PayloadTypeRegistry.serverboundPlay().register(ResearchCarriedPayload.TYPE, ResearchCarriedPayload.CODEC);
 		PayloadTypeRegistry.serverboundPlay().register(RequestItemPayload.TYPE, RequestItemPayload.CODEC);
+		PayloadTypeRegistry.serverboundPlay().register(ResearchSlotPayload.TYPE, ResearchSlotPayload.CODEC);
+		ServerPlayNetworking.registerGlobalReceiver(ResearchSlotPayload.TYPE, (payload, context) -> researchSlot(context.player(), payload));
 		PayloadTypeRegistry.clientboundPlay().register(ResearchSyncPayload.TYPE, ResearchSyncPayload.CODEC);
+		PayloadTypeRegistry.clientboundPlay().register(CostConfigPayload.TYPE, CostConfigPayload.CODEC);
+		PayloadTypeRegistry.serverboundPlay().register(TrashClickPayload.TYPE, TrashClickPayload.CODEC);
+		PayloadTypeRegistry.clientboundPlay().register(TrashSyncPayload.TYPE, TrashSyncPayload.CODEC);
+		ServerPlayNetworking.registerGlobalReceiver(TrashClickPayload.TYPE, (payload, context) -> clickTrash(context.player()));
+		ResearchCosts.load();
 		ServerPlayNetworking.registerGlobalReceiver(ResearchCarriedPayload.TYPE, (payload, context) -> researchCarried(context.player()));
 		ServerPlayNetworking.registerGlobalReceiver(RequestItemPayload.TYPE, (payload, context) -> giveItem(context.player(), payload));
-		ServerPlayConnectionEvents.JOIN.register((handler, sender, server) -> sync(handler.getPlayer()));
+		ServerPlayConnectionEvents.JOIN.register((handler, sender, server) -> {
+			ServerPlayer player = handler.getPlayer();
+			// The costs go first, so the client knows what counts as researched when the progress arrives.
+			if (ServerPlayNetworking.canSend(player, CostConfigPayload.TYPE)) {
+				ServerPlayNetworking.send(player, new CostConfigPayload(ResearchCosts.rules()));
+			}
+			sync(player);
+			syncTrash(player);
+		});
+	}
+
+	/**
+	 * Clicking the trash slot with an item on the cursor puts that stack in it, throwing away
+	 * whatever was there before. With an empty cursor it takes the trashed stack back out.
+	 */
+	private static void clickTrash(ServerPlayer player) {
+		TrashData data = TrashData.get(player.level().getServer());
+		ItemStack carried = player.containerMenu.getCarried();
+		if (!carried.isEmpty()) {
+			data.set(player.getUUID(), carried);
+			player.containerMenu.setCarried(ItemStack.EMPTY);
+		} else if (!data.get(player.getUUID()).isEmpty()) {
+			player.containerMenu.setCarried(data.get(player.getUUID()).copy());
+			data.set(player.getUUID(), ItemStack.EMPTY);
+		} else {
+			return;
+		}
+		player.containerMenu.broadcastChanges();
+		syncTrash(player);
+	}
+
+	private static void syncTrash(ServerPlayer player) {
+		if (ServerPlayNetworking.canSend(player, TrashSyncPayload.TYPE)) {
+			ServerPlayNetworking.send(player, new TrashSyncPayload(TrashData.get(player.level().getServer()).get(player.getUUID()).copy()));
+		}
 	}
 
 	/** Uses up as much of the player's cursor stack as the item still needs. */
 	private static void researchCarried(ServerPlayer player) {
-		ItemStack carried = player.containerMenu.getCarried();
-		if (carried.isEmpty()) {
+		research(player, player.containerMenu.getCarried());
+	}
+
+	/**
+	 * Uses up as much of the stack in an inventory slot as the item still needs. Only the main
+	 * inventory and hotbar count, so a crafting result can never be turned into free research.
+	 */
+	private static void researchSlot(ServerPlayer player, ResearchSlotPayload payload) {
+		if (payload.slot() < 0 || payload.slot() >= player.containerMenu.slots.size()) {
 			return;
 		}
-		Identifier id = BuiltInRegistries.ITEM.getKey(carried.getItem());
-		int needed = ResearchCosts.required(carried.getItem());
+		Slot slot = player.containerMenu.getSlot(payload.slot());
+		if (slot.container != player.getInventory() || slot.getContainerSlot() >= 36 || !slot.mayPickup(player)) {
+			return;
+		}
+		research(player, slot.getItem());
+		slot.setChanged();
+	}
+
+	private static void research(ServerPlayer player, ItemStack stack) {
+		if (stack.isEmpty()) {
+			return;
+		}
+		Identifier id = BuiltInRegistries.ITEM.getKey(stack.getItem());
+		int needed = ResearchCosts.required(stack.getItem());
 		ResearchData data = ResearchData.get(player.level().getServer());
-		int used = Math.min(needed - data.progress(player.getUUID(), id), carried.getCount());
+		int used = Math.min(needed - data.progress(player.getUUID(), id), stack.getCount());
 		if (used <= 0) {
 			return;
 		}
 		data.add(player.getUUID(), id, used, needed);
-		carried.shrink(used);
+		stack.shrink(used);
 		player.containerMenu.broadcastChanges();
 		sync(player);
 	}

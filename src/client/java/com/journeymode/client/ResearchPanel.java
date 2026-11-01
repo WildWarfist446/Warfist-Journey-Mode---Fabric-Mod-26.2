@@ -8,6 +8,8 @@ import com.journeymode.JourneyMode;
 import com.journeymode.client.mixin.AbstractContainerScreenAccessor;
 import com.journeymode.network.RequestItemPayload;
 import com.journeymode.network.ResearchCarriedPayload;
+import com.journeymode.network.ResearchSlotPayload;
+import com.journeymode.network.TrashClickPayload;
 import com.journeymode.research.ResearchCosts;
 
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
@@ -31,6 +33,7 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.util.FormattedCharSequence;
+import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 
@@ -71,16 +74,20 @@ public final class ResearchPanel {
 	/** The recipe book's width, including its border. */
 	private static final int RECIPE_BOOK_WIDTH = 148;
 	private static final int PANEL_WIDTH = 124;
+	/** The item list's scroll bar is a thin strip just right of the grid. */
+	private static final int SCROLLBAR_WIDTH = 3;
+	private static final int SCROLLBAR_GAP = 1;
 	private static final int RESEARCH_HEIGHT = 112;
-	/** Room for the title and search box above the grid (see GRID_OFFSET_Y), seven rows of cells, and a margin. */
-	private static final int ITEMS_HEIGHT = 38 + 7 * 18 + 8;
+	/** Room for the title, tab row and search box above the grid (see GRID_OFFSET_Y), seven rows of cells, and a margin. */
+	private static final int ITEMS_HEIGHT = 56 + 7 * 18 + 8;
 
 	private static final int GRID_COLUMNS = 6;
 	private static final int GRID_ROWS = 7;
 	private static final int CELL = 18;
 	private static final int GRID_OFFSET_X = 8;
-	private static final int GRID_OFFSET_Y = 38;
-	private static final int SEARCH_OFFSET_Y = 20;
+	private static final int GRID_OFFSET_Y = 56;
+	private static final int TAB_OFFSET_Y = 18;
+	private static final int SEARCH_OFFSET_Y = 38;
 	private static final int SEARCH_HEIGHT = 14;
 
 	private static final String KEY = "gui.journeymode.research.";
@@ -102,12 +109,22 @@ public final class ResearchPanel {
 	 */
 	private static final Icon ITEMS_ICON = new Icon(JourneyMode.id("textures/gui/item_icon.png"), 32, 5, 3, 23, 25, 12, 13);
 
+	/**
+	 * The trash slot's icon, sprites/trash-can-icon.png: a 14 x 15 picture on a 32 x 32 canvas,
+	 * drawn smaller so it is close to the research icon's size.
+	 */
+	private static final Icon TRASH_ICON = new Icon(JourneyMode.id("textures/gui/trash_icon.png"), 32, 9, 7, 14, 15, 10, 11);
+
 	private static Mode mode = Mode.NONE;
 	/** The first visible row of the item list. */
 	private static int scrollRow;
 	private static String searchText = "";
+	/** The item list's selected tab. */
+	private static ItemCategory category = ItemCategory.ALL;
 	/** Whether the press of the mouse button now held was used by the panels, so its release must be ignored too. */
 	private static boolean swallowRelease;
+	/** Whether the scroll bar is being dragged. */
+	private static boolean draggingScrollbar;
 	/** The current screen's search box, which is only shown and used while the item list is open. */
 	private static EditBox searchBox;
 
@@ -115,6 +132,7 @@ public final class ResearchPanel {
 	private static List<Item> shown = List.of();
 	private static List<Item> shownSource;
 	private static String shownQuery = "";
+	private static ItemCategory shownCategory = ItemCategory.ALL;
 
 	private ResearchPanel() {
 	}
@@ -145,7 +163,15 @@ public final class ResearchPanel {
 			ScreenMouseEvents.allowMouseRelease(screen).register((s, event) -> {
 				boolean swallow = swallowRelease;
 				swallowRelease = false;
+				draggingScrollbar = false;
 				return !swallow;
+			});
+			ScreenMouseEvents.allowMouseDrag(screen).register((s, event, horizontal, vertical) -> {
+				if (draggingScrollbar) {
+					scrollTo(inventory, event.y());
+					return false;
+				}
+				return true;
 			});
 			ScreenMouseEvents.allowMouseScroll(screen).register((s, mouseX, mouseY, horizontal, vertical) ->
 					!scroll(inventory, mouseX, mouseY, vertical));
@@ -158,12 +184,13 @@ public final class ResearchPanel {
 	private static List<Item> shownItems() {
 		List<Item> source = ResearchClientState.researchedItems();
 		String query = searchText.strip().toLowerCase(Locale.ROOT);
-		if (source != shownSource || !query.equals(shownQuery)) {
+		if (source != shownSource || !query.equals(shownQuery) || category != shownCategory) {
 			shownSource = source;
 			shownQuery = query;
+			shownCategory = category;
 			List<Item> matches = new ArrayList<>();
 			for (Item item : source) {
-				if (query.isEmpty() || matches(item, query)) {
+				if (category.matches(item) && (query.isEmpty() || matches(item, query))) {
 					matches.add(item);
 				}
 			}
@@ -204,9 +231,13 @@ public final class ResearchPanel {
 	 */
 	private static int leftEdge(AbstractContainerScreen<?> screen) {
 		AbstractContainerScreenAccessor a = (AbstractContainerScreenAccessor) screen;
-		int centered = (screen.width - a.journeymode$imageWidth()) / 2;
-		boolean recipeBookOpen = a.journeymode$leftPos() > centered;
-		return a.journeymode$leftPos() - (recipeBookOpen ? RECIPE_BOOK_WIDTH : 0);
+		return a.journeymode$leftPos() - (recipeBookOpen(screen) ? RECIPE_BOOK_WIDTH : 0);
+	}
+
+	/** Whether the recipe book is open: it shifts the inventory right of the screen's centre. */
+	private static boolean recipeBookOpen(AbstractContainerScreen<?> screen) {
+		AbstractContainerScreenAccessor a = (AbstractContainerScreenAccessor) screen;
+		return a.journeymode$leftPos() > (screen.width - a.journeymode$imageWidth()) / 2;
 	}
 
 	private static int buttonX(AbstractContainerScreen<?> screen) {
@@ -218,12 +249,19 @@ public final class ResearchPanel {
 		return ((AbstractContainerScreenAccessor) screen).journeymode$topPos() + 4 + (forMode == Mode.ITEMS ? BUTTON_SPACING : 0);
 	}
 
+	/** The trash slot sits in the same column as the buttons, under the item list button. */
+	private static int trashY(AbstractContainerScreen<?> screen) {
+		return ((AbstractContainerScreenAccessor) screen).journeymode$topPos() + 4 + 2 * BUTTON_SPACING;
+	}
+
 	private static int panelX(AbstractContainerScreen<?> screen) {
 		return buttonX(screen) - PANEL_GAP - PANEL_WIDTH;
 	}
 
+	/** The panel is centred vertically on the inventory, so the taller item list sticks out equally above and below. */
 	private static int panelY(AbstractContainerScreen<?> screen) {
-		return ((AbstractContainerScreenAccessor) screen).journeymode$topPos();
+		AbstractContainerScreenAccessor a = (AbstractContainerScreenAccessor) screen;
+		return a.journeymode$topPos() + (a.journeymode$imageHeight() - panelHeight()) / 2;
 	}
 
 	private static int panelHeight() {
@@ -251,6 +289,36 @@ public final class ResearchPanel {
 		return panelY(screen) + GRID_OFFSET_Y;
 	}
 
+	/** The tab under the mouse, or null. The tabs sit in a row above the search box, one cell wide each. */
+	private static ItemCategory tabAt(AbstractContainerScreen<?> screen, double mx, double my) {
+		int tabY = panelY(screen) + TAB_OFFSET_Y;
+		if (mode != Mode.ITEMS || my < tabY || my >= tabY + CELL || mx < gridX(screen)) {
+			return null;
+		}
+		int index = (int) (mx - gridX(screen)) / CELL;
+		return index < ItemCategory.values().length ? ItemCategory.values()[index] : null;
+	}
+
+	private static int scrollbarX(AbstractContainerScreen<?> screen) {
+		return gridX(screen) + GRID_COLUMNS * CELL + SCROLLBAR_GAP;
+	}
+
+	/** The scroll bar thumb's height: the share of the list that is visible, with a minimum so it stays grabbable. */
+	private static int thumbHeight() {
+		int trackHeight = GRID_ROWS * CELL;
+		return Math.min(trackHeight, Math.max(10, trackHeight * GRID_ROWS / Math.max(GRID_ROWS, totalRows())));
+	}
+
+	/** Scrolls so the thumb's centre follows the mouse at screen height {@code my}. */
+	private static void scrollTo(AbstractContainerScreen<?> screen, double my) {
+		int travel = GRID_ROWS * CELL - thumbHeight();
+		if (maxScrollRow() <= 0 || travel <= 0) {
+			return;
+		}
+		double fraction = (my - gridY(screen) - thumbHeight() / 2.0) / travel;
+		scrollRow = Math.clamp(Math.round(fraction * maxScrollRow()), 0, maxScrollRow());
+	}
+
 	private static int totalRows() {
 		return (shownItems().size() + GRID_COLUMNS - 1) / GRID_COLUMNS;
 	}
@@ -274,9 +342,18 @@ public final class ResearchPanel {
 
 	private static void extract(Minecraft client, InventoryScreen screen, GuiGraphicsExtractor graphics, int mouseX, int mouseY) {
 		Font font = client.font;
+		// With the recipe book open, everything is hidden (and ignores clicks) until it is closed again.
+		if (recipeBookOpen(screen)) {
+			searchBox.visible = false;
+			searchBox.active = false;
+			searchBox.setFocused(false);
+			draggingScrollbar = false;
+			return;
+		}
 		scrollRow = Math.clamp(scrollRow, 0, maxScrollRow());
 		drawButton(font, screen, graphics, mouseX, mouseY, Mode.RESEARCH, "R", RESEARCH_ICON, "title");
 		drawButton(font, screen, graphics, mouseX, mouseY, Mode.ITEMS, "I", ITEMS_ICON, "items_title");
+		drawTrash(font, screen, graphics, mouseX, mouseY);
 
 		// The search box only exists while the item list is open.
 		boolean listOpen = mode == Mode.ITEMS;
@@ -334,6 +411,26 @@ public final class ResearchPanel {
 		}
 	}
 
+	/** The trash slot: shows the trash can icon while empty, otherwise the stack waiting in it. It opens no panel. */
+	private static void drawTrash(Font font, InventoryScreen screen, GuiGraphicsExtractor graphics, int mouseX, int mouseY) {
+		int bx = buttonX(screen);
+		int by = trashY(screen);
+		ItemStack trashed = ResearchClientState.trash();
+		graphics.fill(bx, by, bx + BUTTON_SIZE, by + BUTTON_SIZE, PANEL_INNER);
+		graphics.outline(bx, by, BUTTON_SIZE, BUTTON_SIZE, ACCENT);
+		if (trashed.isEmpty()) {
+			graphics.blit(RenderPipelines.GUI_TEXTURED, TRASH_ICON.texture(), bx + (BUTTON_SIZE - TRASH_ICON.drawWidth()) / 2,
+					by + (BUTTON_SIZE - TRASH_ICON.drawHeight()) / 2, TRASH_ICON.u(), TRASH_ICON.v(), TRASH_ICON.drawWidth(),
+					TRASH_ICON.drawHeight(), TRASH_ICON.width(), TRASH_ICON.height(), TRASH_ICON.textureSize(), TRASH_ICON.textureSize());
+		} else {
+			graphics.fakeItem(trashed, bx + 2, by + 2);
+			graphics.itemDecorations(font, trashed, bx + 2, by + 2);
+		}
+		if (inside(mouseX, mouseY, bx, by, BUTTON_SIZE, BUTTON_SIZE)) {
+			graphics.fill(bx, by, bx + BUTTON_SIZE, by + BUTTON_SIZE, HOVER);
+		}
+	}
+
 	private static void extractResearch(Font font, InventoryScreen screen, GuiGraphicsExtractor graphics, int mouseX, int mouseY,
 			int px, int py) {
 		// The drop spot.
@@ -385,6 +482,20 @@ public final class ResearchPanel {
 		int gy = gridY(screen);
 		int hovered = itemAt(screen, mouseX, mouseY);
 
+		ItemCategory hoveredTab = tabAt(screen, mouseX, mouseY);
+		for (ItemCategory tab : ItemCategory.values()) {
+			int x = gx + tab.ordinal() * CELL;
+			int y = py + TAB_OFFSET_Y;
+			boolean selected = tab == category;
+			graphics.fill(x, y, x + CELL, y + CELL, selected ? ACCENT : SLOT_BORDER);
+			graphics.fill(x + 1, y + 1, x + CELL - 1, y + CELL - 1, selected ? ACCENT_DARK : SLOT_FILL);
+			graphics.fakeItem(new ItemStack(tab.icon()), x + 1, y + 1);
+			if (tab == hoveredTab) {
+				graphics.fill(x + 1, y + 1, x + CELL - 1, y + CELL - 1, HOVER);
+				graphics.setTooltipForNextFrame(font, Component.translatable(KEY + "tab." + tab.key()), mouseX, mouseY);
+			}
+		}
+
 		for (int row = 0; row < GRID_ROWS; row++) {
 			for (int col = 0; col < GRID_COLUMNS; col++) {
 				int x = gx + col * CELL;
@@ -401,14 +512,16 @@ public final class ResearchPanel {
 			}
 		}
 
-		if (maxScrollRow() > 0) {
-			int trackX = px + PANEL_WIDTH - 8;
-			int trackHeight = GRID_ROWS * CELL;
-			graphics.fill(trackX, gy, trackX + 3, gy + trackHeight, SLOT_FILL);
-			int thumbHeight = Math.max(6, trackHeight * GRID_ROWS / totalRows());
-			int thumbY = gy + (trackHeight - thumbHeight) * scrollRow / maxScrollRow();
-			graphics.fill(trackX, thumbY, trackX + 3, thumbY + thumbHeight, ACCENT);
-		}
+		// The scroll bar is always shown; with nothing to scroll the thumb fills the track and is dimmed.
+		int trackX = scrollbarX(screen);
+		int trackHeight = GRID_ROWS * CELL;
+		graphics.fill(trackX, gy, trackX + SCROLLBAR_WIDTH, gy + trackHeight, SLOT_FILL);
+		int thumbHeight = thumbHeight();
+		int thumbY = maxScrollRow() > 0 ? gy + (trackHeight - thumbHeight) * scrollRow / maxScrollRow() : gy;
+		boolean scrollable = maxScrollRow() > 0;
+		boolean overBar = inside(mouseX, mouseY, trackX - 1, gy, SCROLLBAR_WIDTH + 2, trackHeight);
+		graphics.fill(trackX, thumbY, trackX + SCROLLBAR_WIDTH, thumbY + thumbHeight,
+				!scrollable ? ACCENT_DARK : draggingScrollbar || overBar ? DONE : ACCENT);
 
 		if (items.isEmpty()) {
 			// Either nothing is researched yet, or nothing matches the search.
@@ -434,6 +547,9 @@ public final class ResearchPanel {
 
 	/** Handles a click; returns true if the panels used it, so the inventory should ignore it. */
 	private static boolean click(Minecraft client, InventoryScreen screen, double mx, double my, int button, boolean shift) {
+		if (recipeBookOpen(screen)) {
+			return false;
+		}
 		for (Mode forMode : new Mode[] {Mode.RESEARCH, Mode.ITEMS}) {
 			if (inside(mx, my, buttonX(screen), buttonY(screen, forMode), BUTTON_SIZE, BUTTON_SIZE)) {
 				if (button == 0) {
@@ -443,12 +559,29 @@ public final class ResearchPanel {
 				return true;
 			}
 		}
+		if (inside(mx, my, buttonX(screen), trashY(screen), BUTTON_SIZE, BUTTON_SIZE)) {
+			if (button == 0 || button == 1) {
+				ClientPlayNetworking.send(new TrashClickPayload());
+				client.getSoundManager().play(SimpleSoundInstance.forUI(SoundEvents.UI_BUTTON_CLICK, 1.0F));
+			}
+			return true;
+		}
 		// A click on the search box goes to the box itself.
 		if (mode == Mode.ITEMS && inside(mx, my, searchBox.getX(), searchBox.getY(), searchBox.getWidth(), searchBox.getHeight())) {
 			return false;
 		}
 		// Any other click takes the keyboard away from the search box.
 		searchBox.setFocused(false);
+		// With the research panel open, shift-clicking an item that still needs research sends it to the panel.
+		if (mode == Mode.RESEARCH && shift && (button == 0 || button == 1)) {
+			Slot slot = ((AbstractContainerScreenAccessor) screen).journeymode$hoveredSlot();
+			if (slot != null && slot.hasItem() && slot.container == client.player.getInventory() && slot.getContainerSlot() < 36
+					&& ResearchClientState.progress(slot.getItem().getItem()) < ResearchCosts.required(slot.getItem().getItem())) {
+				ClientPlayNetworking.send(new ResearchSlotPayload(slot.index));
+				client.getSoundManager().play(SimpleSoundInstance.forUI(SoundEvents.UI_BUTTON_CLICK, 1.0F));
+				return true;
+			}
+		}
 		// Anywhere on an open panel: swallow the click, or the inventory would throw the cursor item away.
 		if (mode == Mode.NONE || !inside(mx, my, panelX(screen), panelY(screen), PANEL_WIDTH, panelHeight())) {
 			return false;
@@ -456,6 +589,18 @@ public final class ResearchPanel {
 		if (mode == Mode.RESEARCH) {
 			if (button == 0 && !screen.getMenu().getCarried().isEmpty()) {
 				ClientPlayNetworking.send(new ResearchCarriedPayload());
+				client.getSoundManager().play(SimpleSoundInstance.forUI(SoundEvents.UI_BUTTON_CLICK, 1.0F));
+			}
+		} else if (inside(mx, my, scrollbarX(screen) - 1, gridY(screen), SCROLLBAR_WIDTH + 2, GRID_ROWS * CELL)) {
+			// Click or drag the scroll bar to move the list.
+			if (button == 0) {
+				draggingScrollbar = true;
+				scrollTo(screen, my);
+			}
+		} else if (tabAt(screen, mx, my) != null) {
+			if (button == 0) {
+				category = tabAt(screen, mx, my);
+				scrollRow = 0;
 				client.getSoundManager().play(SimpleSoundInstance.forUI(SoundEvents.UI_BUTTON_CLICK, 1.0F));
 			}
 		} else if (button >= 0 && button <= 2) {
@@ -471,7 +616,7 @@ public final class ResearchPanel {
 
 	/** Scrolls the item list when the mouse is over its panel; returns true if the scroll was used. */
 	private static boolean scroll(InventoryScreen screen, double mx, double my, double amount) {
-		if (mode != Mode.ITEMS || !inside(mx, my, panelX(screen), panelY(screen), PANEL_WIDTH, panelHeight())) {
+		if (recipeBookOpen(screen) || mode != Mode.ITEMS || !inside(mx, my, panelX(screen), panelY(screen), PANEL_WIDTH, panelHeight())) {
 			return false;
 		}
 		if (amount != 0) {
