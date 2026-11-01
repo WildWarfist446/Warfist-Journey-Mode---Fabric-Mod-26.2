@@ -64,9 +64,10 @@ public final class ResearchPanel {
 	private static final int SLOT_FILL = 0xFF111820;
 	private static final int HOVER = 0x40FFFFFF;
 
-	private static final int BUTTON_SIZE = 20;
+	/** Big enough for the largest icon (23 x 25) at its real size. */
+	private static final int BUTTON_SIZE = 28;
 	private static final int BUTTON_GAP = 2;
-	private static final int BUTTON_SPACING = 24;
+	private static final int BUTTON_SPACING = 32;
 	private static final int PANEL_GAP = 4;
 	/** The recipe book's width, including its border. */
 	private static final int RECIPE_BOOK_WIDTH = 148;
@@ -94,6 +95,9 @@ public final class ResearchPanel {
 
 	/** The research button's icon, sprites/research-menu-icon.png: a 10 x 12 picture on a 32 x 32 canvas. */
 	private static final Icon RESEARCH_ICON = new Icon(JourneyMode.id("textures/gui/research_icon.png"), 32, 11, 8, 10, 12);
+
+	/** The item list button's icon, sprites/item-menu-icon.png: a 23 x 25 picture on a 32 x 32 canvas. */
+	private static final Icon ITEMS_ICON = new Icon(JourneyMode.id("textures/gui/item_icon.png"), 32, 5, 3, 23, 25);
 
 	private static Mode mode = Mode.NONE;
 	/** The first visible row of the item list. */
@@ -258,7 +262,7 @@ public final class ResearchPanel {
 		Font font = client.font;
 		scrollRow = Math.clamp(scrollRow, 0, maxScrollRow());
 		drawButton(font, screen, graphics, mouseX, mouseY, Mode.RESEARCH, "R", RESEARCH_ICON, "title");
-		drawButton(font, screen, graphics, mouseX, mouseY, Mode.ITEMS, "I", null, "items_title");
+		drawButton(font, screen, graphics, mouseX, mouseY, Mode.ITEMS, "I", ITEMS_ICON, "items_title");
 
 		// The search box only exists while the item list is open.
 		boolean listOpen = mode == Mode.ITEMS;
