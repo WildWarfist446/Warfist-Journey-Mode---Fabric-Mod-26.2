@@ -18,13 +18,23 @@ import net.minecraft.world.item.Item;
 public final class ResearchClientState {
 	private static Map<Identifier, Integer> progress = Map.of();
 	private static List<Item> researched = List.of();
+	/** Whether the server has sent progress since this player joined. */
+	private static boolean synced;
 
 	private ResearchClientState() {
 	}
 
 	public static void initialize() {
 		ClientPlayNetworking.registerGlobalReceiver(ResearchSyncPayload.TYPE, (payload, context) -> {
+			// The first sync after joining just loads saved progress. Any later one that adds to it
+			// means an item was just researched.
+			int before = total(progress);
+			boolean increased = synced && total(payload.progress()) > before;
+			synced = true;
 			progress = Map.copyOf(payload.progress());
+			if (increased) {
+				ResearchSounds.playResearched();
+			}
 			researched = progress.entrySet().stream()
 					.map(entry -> BuiltInRegistries.ITEM.getOptional(entry.getKey()).filter(item -> entry.getValue() >= ResearchCosts.required(item)))
 					.flatMap(java.util.Optional::stream)
@@ -34,7 +44,13 @@ public final class ResearchClientState {
 		ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> {
 			progress = Map.of();
 			researched = List.of();
+			synced = false;
+			ResearchSounds.reset();
 		});
+	}
+
+	private static int total(Map<Identifier, Integer> progress) {
+		return progress.values().stream().mapToInt(Integer::intValue).sum();
 	}
 
 	public static int progress(Item item) {
