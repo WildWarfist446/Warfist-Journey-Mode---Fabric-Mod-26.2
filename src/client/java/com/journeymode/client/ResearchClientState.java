@@ -26,20 +26,26 @@ public final class ResearchClientState {
 
 	public static void initialize() {
 		ClientPlayNetworking.registerGlobalReceiver(ResearchSyncPayload.TYPE, (payload, context) -> {
-			// The first sync after joining just loads saved progress. Any later one that adds to it
-			// means an item was just researched.
 			int before = total(progress);
-			boolean increased = synced && total(payload.progress()) > before;
-			synced = true;
+			int researchedBefore = researched.size();
 			progress = Map.copyOf(payload.progress());
-			if (increased) {
-				ResearchSounds.playResearched();
-			}
 			researched = progress.entrySet().stream()
 					.map(entry -> BuiltInRegistries.ITEM.getOptional(entry.getKey()).filter(item -> entry.getValue() >= ResearchCosts.required(item)))
 					.flatMap(java.util.Optional::stream)
 					.sorted(Comparator.comparingInt(BuiltInRegistries.ITEM::getId))
 					.toList();
+
+			// The first sync after joining just loads saved progress. Any later one that adds to it
+			// means items were just sacrificed: a celebration if that finished an item, a pop if not.
+			boolean added = synced && total(progress) > before;
+			synced = true;
+			if (added) {
+				if (researched.size() > researchedBefore) {
+					ResearchSounds.playCompleted();
+				} else {
+					ResearchSounds.playProgress();
+				}
+			}
 		});
 		ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> {
 			progress = Map.of();
