@@ -1,6 +1,5 @@
 package com.journeymode;
 
-import com.journeymode.menu.ModMenus;
 import com.journeymode.research.ResearchManager;
 
 import net.fabricmc.api.ModInitializer;
@@ -17,7 +16,6 @@ public class JourneyMode implements ModInitializer {
 
 	@Override
 	public void onInitialize() {
-		ModMenus.initialize();
 		ResearchManager.initialize();
 		LOGGER.info("Journey Mode loaded");
 	}

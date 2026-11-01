@@ -3,7 +3,6 @@ package com.journeymode.research;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
-import java.util.function.Predicate;
 
 import com.journeymode.JourneyMode;
 import com.mojang.serialization.Codec;
@@ -12,7 +11,6 @@ import net.minecraft.core.UUIDUtil;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.util.datafix.DataFixTypes;
-import net.minecraft.world.item.Item;
 import net.minecraft.world.level.saveddata.SavedData;
 import net.minecraft.world.level.saveddata.SavedDataType;
 
@@ -42,18 +40,14 @@ public final class ResearchData extends SavedData {
 		return this.progress.getOrDefault(player, Map.of()).getOrDefault(item, 0);
 	}
 
-	public boolean isResearched(UUID player, Identifier item, Item type) {
-		return this.progress(player, item) >= ResearchCosts.required(type);
+	/** A copy of everything the player has sacrificed so far. */
+	public Map<Identifier, Integer> all(UUID player) {
+		return new HashMap<>(this.progress.getOrDefault(player, Map.of()));
 	}
 
 	/** Adds sacrificed items to the player's progress, never past what the item needs. */
 	public void add(UUID player, Identifier item, int amount, int required) {
 		this.progress.computeIfAbsent(player, id -> new HashMap<>()).merge(item, amount, (a, b) -> Math.min(required, a + b));
 		this.setDirty();
-	}
-
-	/** How many items the player has fully researched. */
-	public int researchedCount(UUID player, Predicate<Identifier> isDone) {
-		return (int) this.progress.getOrDefault(player, Map.of()).keySet().stream().filter(isDone).count();
 	}
 }
