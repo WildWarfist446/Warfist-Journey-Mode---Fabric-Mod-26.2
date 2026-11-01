@@ -48,7 +48,15 @@ public final class ResearchManager {
 		sync(player);
 	}
 
-	/** Gives the player a researched item. Anything not fully researched is ignored. */
+	/**
+	 * Handles a click on a researched item in the item list, the way the creative menu does:
+	 * <ul>
+	 *   <li>empty cursor: left or right click picks up one, shift-click a full stack, middle-click a full stack;</li>
+	 *   <li>the same item on the cursor: left click adds one, shift-click fills the stack, right click removes one.</li>
+	 * </ul>
+	 * Unlike the creative menu, a click with a different item on the cursor does nothing, so a
+	 * real item in the player's hand is never thrown away. Anything not fully researched is ignored.
+	 */
 	private static void giveItem(ServerPlayer player, RequestItemPayload request) {
 		Item item = BuiltInRegistries.ITEM.getOptional(request.item()).orElse(null);
 		if (item == null || item == Items.AIR) {
@@ -58,30 +66,35 @@ public final class ResearchManager {
 		if (data.progress(player.getUUID(), request.item()) < ResearchCosts.required(item)) {
 			return;
 		}
-		ItemStack stack = new ItemStack(item);
-		int maxCount = stack.getMaxStackSize();
-		switch (request.mode()) {
-			case RequestItemPayload.STACK_TO_INVENTORY -> {
-				stack.setCount(maxCount);
-				player.getInventory().add(stack);
-			}
-			case RequestItemPayload.STACK_TO_CURSOR, RequestItemPayload.ONE_TO_CURSOR -> {
-				int wanted = request.mode() == RequestItemPayload.ONE_TO_CURSOR ? 1 : maxCount;
-				ItemStack carried = player.containerMenu.getCarried();
-				if (carried.isEmpty()) {
-					stack.setCount(wanted);
-					player.containerMenu.setCarried(stack);
-				} else if (ItemStack.isSameItemSameComponents(carried, stack)) {
-					carried.setCount(Math.min(maxCount, carried.getCount() + wanted));
-				}
-			}
-			default -> {
+		ItemStack clicked = new ItemStack(item);
+		int max = clicked.getMaxStackSize();
+		ItemStack carried = player.containerMenu.getCarried();
+
+		if (carried.isEmpty()) {
+			boolean fullStack = request.quick() || request.button() == 2;
+			if (request.button() < 0 || request.button() > 2) {
 				return;
 			}
+			player.containerMenu.setCarried(clicked.copyWithCount(fullStack ? max : 1));
+		} else if (ItemStack.isSameItemSameComponents(carried, clicked)) {
+			switch (request.button()) {
+				case 0 -> {
+					if (request.quick()) {
+						carried.setCount(max);
+					} else if (carried.getCount() < max) {
+						carried.grow(1);
+					}
+				}
+				case 1 -> carried.shrink(1);
+				default -> {
+					return;
+				}
+			}
+		} else {
+			return;
 		}
 		player.containerMenu.broadcastChanges();
 	}
-
 	private static void sync(ServerPlayer player) {
 		if (ServerPlayNetworking.canSend(player, ResearchSyncPayload.TYPE)) {
 			ServerPlayNetworking.send(player, new ResearchSyncPayload(ResearchData.get(player.level().getServer()).all(player.getUUID())));

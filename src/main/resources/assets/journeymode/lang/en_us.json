@@ -4,7 +4,7 @@
   "gui.journeymode.research.researched": "Researched!",
   "gui.journeymode.research.total": "Items researched: %s",
   "gui.journeymode.research.items_title": "Researched Items",
-  "gui.journeymode.research.items_hint": "Click: stack. Right-click: one. Shift-click: to inventory.",
+  "gui.journeymode.research.items_hint": "Click: take one. Shift-click: take a stack.",
   "gui.journeymode.research.none_yet": "Nothing researched yet",
   "gui.journeymode.research.no_matches": "No matching items",
   "gui.journeymode.research.search": "Search (@mod)"

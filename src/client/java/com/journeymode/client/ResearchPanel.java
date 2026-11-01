@@ -39,9 +39,8 @@ import net.minecraft.world.item.ItemStack;
  * <ul>
  *   <li><b>Research</b>: with an item on the cursor, click the panel to sacrifice it; the panel
  *   shows how far along that item is.</li>
- *   <li><b>Items</b>: a searchable, scrolling list of everything researched. Left-click takes a
- *   stack onto the cursor, right-click takes one, shift-click puts a stack straight in the
- *   inventory.</li>
+ *   <li><b>Items</b>: a searchable, scrolling list of everything researched. Clicks work like the
+ *   creative menu's item list (see {@code ResearchManager.giveItem}).</li>
  * </ul>
  * Everything is keyed by the item registry, so items added by other mods work like vanilla ones.
  * Drawn with flat fills, no textures. The panels are drawn in the screen's background pass so
@@ -422,13 +421,11 @@ public final class ResearchPanel {
 				ClientPlayNetworking.send(new ResearchCarriedPayload());
 				client.getSoundManager().play(SimpleSoundInstance.forUI(SoundEvents.UI_BUTTON_CLICK, 1.0F));
 			}
-		} else if (button == 0 || button == 1) {
+		} else if (button >= 0 && button <= 2) {
 			int index = itemAt(screen, mx, my);
 			if (index >= 0) {
 				Item item = shownItems().get(index);
-				int requestMode = shift ? RequestItemPayload.STACK_TO_INVENTORY
-						: button == 0 ? RequestItemPayload.STACK_TO_CURSOR : RequestItemPayload.ONE_TO_CURSOR;
-				ClientPlayNetworking.send(new RequestItemPayload(BuiltInRegistries.ITEM.getKey(item), requestMode));
+				ClientPlayNetworking.send(new RequestItemPayload(BuiltInRegistries.ITEM.getKey(item), button, shift));
 				client.getSoundManager().play(SimpleSoundInstance.forUI(SoundEvents.UI_BUTTON_CLICK, 1.0F));
 			}
 		}
