@@ -1,6 +1,6 @@
 # Minecraft Journey Mode - Fabric Mod 26.2
 
-A Fabric mod for Minecraft 26.2 adding a Journey Mode.
+A Fabric mod for Minecraft 26.2 adding Terraria-Style Journey Mode.
 
 ## Development
 
