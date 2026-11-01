@@ -1,4 +1,4 @@
-# Minecraft Journey Mode - Fabric Mod 26.2
+# Warfist's Journey Mode - Fabric Mod 26.2
 
 A Fabric mod for Minecraft 26.2 adding Terraria-Style Journey Mode to survival:
 sacrifice items to research them, control time and weather, increase mob spawns, and enter God Mode.
