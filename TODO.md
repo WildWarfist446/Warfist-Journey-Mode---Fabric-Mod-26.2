@@ -7,7 +7,8 @@
 - [ ] Show the panel on the creative inventory screen too (survival inventory only for now).
 
 ## Journey Mode
-- [ ] Item list: search box, creative-tab style categories, and the full item tooltip (only the name shows now).
+- [ ] Item list: creative-tab style category filters.
+- [ ] Test the item list with a few real mods installed (items, search by `@modid`, tooltips).
 - [ ] Decide whether items with different data (enchanted books, potions) research separately. Currently one entry per item type.
 - [ ] Make research costs configurable (currently one full stack per item, see `ResearchCosts`).
 - [ ] Commands.

@@ -1,6 +1,8 @@
 package com.journeymode.client;
 
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 
 import com.journeymode.client.mixin.AbstractContainerScreenAccessor;
 import com.journeymode.network.RequestItemPayload;
@@ -10,15 +12,21 @@ import com.journeymode.research.ResearchCosts;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.fabricmc.fabric.api.client.screen.v1.ScreenEvents;
 import net.fabricmc.fabric.api.client.screen.v1.ScreenMouseEvents;
+import net.fabricmc.fabric.api.client.screen.v1.Screens;
+import net.fabricmc.loader.api.FabricLoader;
 
+import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.gui.components.EditBox;
+import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.client.gui.screens.inventory.InventoryScreen;
 import net.minecraft.client.resources.sounds.SimpleSoundInstance;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
+import net.minecraft.resources.Identifier;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.util.FormattedCharSequence;
 import net.minecraft.world.item.Item;
@@ -31,10 +39,13 @@ import net.minecraft.world.item.ItemStack;
  * <ul>
  *   <li><b>Research</b>: with an item on the cursor, click the panel to sacrifice it; the panel
  *   shows how far along that item is.</li>
- *   <li><b>Items</b>: a scrolling list of everything researched. Left-click takes a stack onto
- *   the cursor, right-click takes one, shift-click puts a stack straight in the inventory.</li>
+ *   <li><b>Items</b>: a searchable, scrolling list of everything researched. Left-click takes a
+ *   stack onto the cursor, right-click takes one, shift-click puts a stack straight in the
+ *   inventory.</li>
  * </ul>
- * Drawn with flat fills, no textures.
+ * Everything is keyed by the item registry, so items added by other mods work like vanilla ones.
+ * Drawn with flat fills, no textures. The panels are drawn in the screen's background pass so
+ * the search box, an ordinary widget, draws on top of them.
  */
 public final class ResearchPanel {
 	private enum Mode {
@@ -60,19 +71,29 @@ public final class ResearchPanel {
 	private static final int RECIPE_BOOK_WIDTH = 148;
 	private static final int PANEL_WIDTH = 124;
 	private static final int RESEARCH_HEIGHT = 112;
-	private static final int ITEMS_HEIGHT = 150;
+	private static final int ITEMS_HEIGHT = 168;
 
 	private static final int GRID_COLUMNS = 6;
 	private static final int GRID_ROWS = 5;
 	private static final int CELL = 18;
 	private static final int GRID_OFFSET_X = 8;
-	private static final int GRID_OFFSET_Y = 22;
+	private static final int GRID_OFFSET_Y = 38;
+	private static final int SEARCH_OFFSET_Y = 20;
+	private static final int SEARCH_HEIGHT = 14;
 
 	private static final String KEY = "gui.journeymode.research.";
 
 	private static Mode mode = Mode.NONE;
 	/** The first visible row of the item list. */
 	private static int scrollRow;
+	private static String searchText = "";
+	/** The current screen's search box, which is only shown and used while the item list is open. */
+	private static EditBox searchBox;
+
+	// The researched items matching the search, worked out again only when either changes.
+	private static List<Item> shown = List.of();
+	private static List<Item> shownSource;
+	private static String shownQuery = "";
 
 	private ResearchPanel() {
 	}
@@ -82,13 +103,67 @@ public final class ResearchPanel {
 			if (!(screen instanceof InventoryScreen inventory)) {
 				return;
 			}
-			ScreenEvents.afterExtract(screen).register((s, graphics, mouseX, mouseY, delta) ->
+			searchBox = new EditBox(client.font, 0, 0, GRID_COLUMNS * CELL, SEARCH_HEIGHT, Component.translatable(KEY + "search"));
+			searchBox.setHint(Component.translatable(KEY + "search").withStyle(ChatFormatting.DARK_GRAY));
+			searchBox.setMaxLength(50);
+			searchBox.setValue(searchText);
+			searchBox.setResponder(text -> {
+				searchText = text;
+				scrollRow = 0;
+			});
+			Screens.getWidgets(screen).add(searchBox);
+
+			ScreenEvents.afterBackground(screen).register((s, graphics, mouseX, mouseY, delta) ->
 					extract(client, inventory, graphics, mouseX, mouseY));
 			ScreenMouseEvents.allowMouseClick(screen).register((s, event) ->
 					!click(client, inventory, event.x(), event.y(), event.button(), event.hasShiftDown()));
 			ScreenMouseEvents.allowMouseScroll(screen).register((s, mouseX, mouseY, horizontal, vertical) ->
 					!scroll(inventory, mouseX, mouseY, vertical));
 		});
+	}
+
+	// ---------------------------------------------------------------- searching
+
+	/** The researched items that match the search box, in the game's item order. */
+	private static List<Item> shownItems() {
+		List<Item> source = ResearchClientState.researchedItems();
+		String query = searchText.strip().toLowerCase(Locale.ROOT);
+		if (source != shownSource || !query.equals(shownQuery)) {
+			shownSource = source;
+			shownQuery = query;
+			List<Item> matches = new ArrayList<>();
+			for (Item item : source) {
+				if (query.isEmpty() || matches(item, query)) {
+					matches.add(item);
+				}
+			}
+			shown = List.copyOf(matches);
+		}
+		return shown;
+	}
+
+	/**
+	 * Whether the item matches the query: every word of it appears in the item's name or registry
+	 * name. A query starting with "@" matches the mod that added the item instead (by id or name).
+	 */
+	private static boolean matches(Item item, String query) {
+		Identifier id = BuiltInRegistries.ITEM.getKey(item);
+		if (query.startsWith("@")) {
+			String mod = query.substring(1).strip();
+			return id.getNamespace().contains(mod) || modName(id.getNamespace()).toLowerCase(Locale.ROOT).contains(mod);
+		}
+		String text = (new ItemStack(item).getHoverName().getString() + " " + id.getPath()).toLowerCase(Locale.ROOT);
+		for (String word : query.split("\\s+")) {
+			if (!text.contains(word)) {
+				return false;
+			}
+		}
+		return true;
+	}
+
+	/** The display name of the mod with this id, or the id itself if it has none. */
+	private static String modName(String modId) {
+		return FabricLoader.getInstance().getModContainer(modId).map(mod -> mod.getMetadata().getName()).orElse(modId);
 	}
 
 	// ---------------------------------------------------------------- geometry
@@ -147,14 +222,14 @@ public final class ResearchPanel {
 	}
 
 	private static int totalRows() {
-		return (ResearchClientState.researchedItems().size() + GRID_COLUMNS - 1) / GRID_COLUMNS;
+		return (shownItems().size() + GRID_COLUMNS - 1) / GRID_COLUMNS;
 	}
 
 	private static int maxScrollRow() {
 		return Math.max(0, totalRows() - GRID_ROWS);
 	}
 
-	/** The index into the researched items of the grid cell under the mouse, or -1. */
+	/** The index into the shown items of the grid cell under the mouse, or -1. */
 	private static int itemAt(AbstractContainerScreen<?> screen, double mx, double my) {
 		int gx = gridX(screen);
 		int gy = gridY(screen);
@@ -162,7 +237,7 @@ public final class ResearchPanel {
 			return -1;
 		}
 		int index = (scrollRow + (int) (my - gy) / CELL) * GRID_COLUMNS + (int) (mx - gx) / CELL;
-		return index < ResearchClientState.researchedItems().size() ? index : -1;
+		return index < shownItems().size() ? index : -1;
 	}
 
 	// ---------------------------------------------------------------- drawing
@@ -172,6 +247,14 @@ public final class ResearchPanel {
 		scrollRow = Math.clamp(scrollRow, 0, maxScrollRow());
 		drawButton(font, screen, graphics, mouseX, mouseY, Mode.RESEARCH, "R", "title");
 		drawButton(font, screen, graphics, mouseX, mouseY, Mode.ITEMS, "I", "items_title");
+
+		// The search box only exists while the item list is open.
+		boolean listOpen = mode == Mode.ITEMS;
+		searchBox.visible = listOpen;
+		searchBox.active = listOpen;
+		if (!listOpen) {
+			searchBox.setFocused(false);
+		}
 		if (mode == Mode.NONE) {
 			return;
 		}
@@ -189,7 +272,9 @@ public final class ResearchPanel {
 		if (mode == Mode.RESEARCH) {
 			extractResearch(font, screen, graphics, mouseX, mouseY, px, py);
 		} else {
-			extractItems(font, screen, graphics, mouseX, mouseY, px, py);
+			searchBox.setX(gridX(screen));
+			searchBox.setY(py + SEARCH_OFFSET_Y);
+			extractItems(client, screen, graphics, mouseX, mouseY, px, py);
 		}
 	}
 
@@ -251,9 +336,10 @@ public final class ResearchPanel {
 				px + PANEL_WIDTH / 2, py + RESEARCH_HEIGHT - 15, TEXT_DIM);
 	}
 
-	private static void extractItems(Font font, InventoryScreen screen, GuiGraphicsExtractor graphics, int mouseX, int mouseY,
+	private static void extractItems(Minecraft client, InventoryScreen screen, GuiGraphicsExtractor graphics, int mouseX, int mouseY,
 			int px, int py) {
-		List<Item> items = ResearchClientState.researchedItems();
+		Font font = client.font;
+		List<Item> items = shownItems();
 		int gx = gridX(screen);
 		int gy = gridY(screen);
 		int hovered = itemAt(screen, mouseX, mouseY);
@@ -283,22 +369,28 @@ public final class ResearchPanel {
 			graphics.fill(trackX, thumbY, trackX + 3, thumbY + thumbHeight, ACCENT);
 		}
 
-		int textY = gy + GRID_ROWS * CELL + 5;
 		if (items.isEmpty()) {
-			textY = gy + 20;
-			for (FormattedCharSequence line : font.split(Component.translatable(KEY + "none_yet"), GRID_COLUMNS * CELL - 12)) {
-				graphics.centeredText(font, line, gx + GRID_COLUMNS * CELL / 2, textY, TEXT_DIM);
-				textY += 10;
+			// Either nothing is researched yet, or nothing matches the search.
+			String message = ResearchClientState.researchedItems().isEmpty() ? "none_yet" : "no_matches";
+			int y = gy + 20;
+			for (FormattedCharSequence line : font.split(Component.translatable(KEY + message), GRID_COLUMNS * CELL - 12)) {
+				graphics.centeredText(font, line, gx + GRID_COLUMNS * CELL / 2, y, TEXT_DIM);
+				y += 10;
 			}
-		} else {
-			for (FormattedCharSequence line : font.split(Component.translatable(KEY + "items_hint"), PANEL_WIDTH - 16)) {
-				graphics.centeredText(font, line, px + PANEL_WIDTH / 2, textY, TEXT_DIM);
-				textY += 10;
-			}
+		}
+		int hintY = gy + GRID_ROWS * CELL + 5;
+		for (FormattedCharSequence line : font.split(Component.translatable(KEY + "items_hint"), PANEL_WIDTH - 16)) {
+			graphics.centeredText(font, line, px + PANEL_WIDTH / 2, hintY, TEXT_DIM);
+			hintY += 10;
 		}
 
 		if (hovered >= 0) {
-			graphics.setTooltipForNextFrame(font, new ItemStack(items.get(hovered)).getHoverName(), mouseX, mouseY);
+			// The item's usual tooltip, then the mod that added it.
+			ItemStack stack = new ItemStack(items.get(hovered));
+			List<Component> tooltip = new ArrayList<>(Screen.getTooltipFromItem(client, stack));
+			tooltip.add(Component.literal(modName(BuiltInRegistries.ITEM.getKey(stack.getItem()).getNamespace()))
+					.withStyle(ChatFormatting.BLUE, ChatFormatting.ITALIC));
+			graphics.setComponentTooltipForNextFrame(font, tooltip, mouseX, mouseY);
 		}
 	}
 
@@ -315,6 +407,12 @@ public final class ResearchPanel {
 				return true;
 			}
 		}
+		// A click on the search box goes to the box itself.
+		if (mode == Mode.ITEMS && inside(mx, my, searchBox.getX(), searchBox.getY(), searchBox.getWidth(), searchBox.getHeight())) {
+			return false;
+		}
+		// Any other click takes the keyboard away from the search box.
+		searchBox.setFocused(false);
 		// Anywhere on an open panel: swallow the click, or the inventory would throw the cursor item away.
 		if (mode == Mode.NONE || !inside(mx, my, panelX(screen), panelY(screen), PANEL_WIDTH, panelHeight())) {
 			return false;
@@ -327,7 +425,7 @@ public final class ResearchPanel {
 		} else if (button == 0 || button == 1) {
 			int index = itemAt(screen, mx, my);
 			if (index >= 0) {
-				Item item = ResearchClientState.researchedItems().get(index);
+				Item item = shownItems().get(index);
 				int requestMode = shift ? RequestItemPayload.STACK_TO_INVENTORY
 						: button == 0 ? RequestItemPayload.STACK_TO_CURSOR : RequestItemPayload.ONE_TO_CURSOR;
 				ClientPlayNetworking.send(new RequestItemPayload(BuiltInRegistries.ITEM.getKey(item), requestMode));
