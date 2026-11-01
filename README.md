@@ -1,6 +1,6 @@
 # Minecraft Journey Mode - Fabric Mod 26.2
 
-A Fabric mod for Minecraft 26.2 that brings a Journey Mode style progression to survival:
+A Fabric mod for Minecraft 26.2 adding Terraria-Style Journey Mode to survival:
 sacrifice items to research them, then take as many copies of anything you have researched as you like.
 
 ## Features
