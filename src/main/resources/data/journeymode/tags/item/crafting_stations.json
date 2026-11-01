@@ -1,0 +1,24 @@
+{
+  "values": [
+    "minecraft:crafting_table",
+    "minecraft:furnace",
+    "minecraft:blast_furnace",
+    "minecraft:smoker",
+    "minecraft:smithing_table",
+    "minecraft:stonecutter",
+    "minecraft:loom",
+    "minecraft:cartography_table",
+    "minecraft:fletching_table",
+    "minecraft:grindstone",
+    "minecraft:anvil",
+    "minecraft:chipped_anvil",
+    "minecraft:damaged_anvil",
+    "minecraft:enchanting_table",
+    "minecraft:brewing_stand",
+    "minecraft:crafter",
+    {
+      "id": "crownofchaos:commander_table",
+      "required": false
+    }
+  ]
+}

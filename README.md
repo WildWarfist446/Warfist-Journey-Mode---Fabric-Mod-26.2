@@ -23,8 +23,12 @@ Open your inventory. A column of six icon buttons and a trash slot sits on its l
 - Pick up a stack with your cursor and click the panel. The items are used up and count toward that item's research cost.
 - Or, with the panel open, shift-click an item in your inventory or hotbar to send it straight to research. Only as many items as it still needs are used.
 - The panel shows a progress bar for the item on your cursor.
-- The cost of an item is one full stack by default: 64 for most blocks and materials, 16 for ender pearls, 1 for tools and armor. Items that do not stack always cost 1.
-- Costs can be changed in `config/journeymode-costs.json` (created on first launch). Keys are item ids (`"minecraft:ancient_debris": 25`) or item tags starting with `#` (`"#c:ingots": 25`), so items from other mods that use the common tags are included. An item's own entry beats a tag, and the first matching tag in the file wins. The server's costs are sent to players when they join; restart to apply edits.
+- The cost of an item is one full stack by default: 64 for most blocks and materials, 16 for ender pearls. Items that do not stack, like tools and armor, always cost 1. The mod's built-in balance changes that for some items:
+  - **1:** crafting and menu blocks (crafting table, furnace, blast furnace, smoker, smithing table, stonecutter, loom, cartography table, fletching table, grindstone, anvil, enchanting table, brewing stand, crafter), plus rare items, mob heads and armor trim templates. These crafting blocks are in the item tag `journeymode:crafting_stations`. Other mods' crafting tables and furnaces are included if they use the common tags (`c:player_workstations/crafting_tables` and `c:player_workstations/furnaces`). A mod or data pack can also add its own block to `journeymode:crafting_stations`, or you can add it to the config (`"modid:item": 1`). Every item from The Crown of Chaos also costs 1.
+  - **25:** ingots, raw ores, ore blocks, gems, coal, ancient debris and netherite scrap.
+  - **32:** all food, and plants: saplings, flowers, crops, seeds, and things like grass, ferns, mushrooms, vines, kelp and berries.
+- A built-in cost is never more than one full stack, so food that stacks to 16 costs 16.
+- Costs can be changed in `config/journeymode-costs.json` (created on first launch, empty at first). It is applied on top of the built-in balance. Keys are item ids (`"minecraft:ancient_debris": 25`) or item tags starting with `#` (`"#c:ingots": 25`), so items from other mods that use the common tags are included. `"#journeymode:food"` matches everything that can be eaten, and `"modid:*"` (for example `"create:*": 1`) matches every item from one mod. An item's own entry beats a tag, and the first matching tag in the file wins. The server's costs are sent to players when they join; restart to apply edits.
 - Progress is saved per player with the world.
 - Sounds: adding items to an item's research plays the item pickup pop. Finishing an item plays a TNT explosion followed by a note block ding.
 
@@ -102,7 +106,7 @@ The built jar is in `build/libs`. The dev client is capped at a 3 GB heap (see `
 Layout:
 - `src/main`: shared and server code. Research data, costs, the trash slot, God Mode, Mob Spawns, advancements and the world setting (`research/`), network packets (`network/`), and the mixin that lets 0x stop natural spawns (`mixin/`).
 - `src/client`: the inventory panels (`ResearchPanel`), the world creation switch (`JourneyToggleButton`), the inventory's steampunk look (`InventoryTheme`), client copy of the server's state (`ResearchClientState`), research sounds (`ResearchSounds`), and mixins for the inventory screen, the recipe book and the Create New World screen. Optional patches for other mods are in `mixin/compat` (see `journeymode.compat.mixins.json`).
-- `src/main/resources/data/journeymode/advancement`: the advancement files.
+- `src/main/resources/data/journeymode`: the advancement files (`advancement/`) and the crafting stations item tag (`tags/item/`).
 - `sprites`: the source art (Aseprite files and PNGs) for the button icons. The in-game copies are in `src/main/resources/assets/journeymode/textures/gui`.
 
 ## Status
