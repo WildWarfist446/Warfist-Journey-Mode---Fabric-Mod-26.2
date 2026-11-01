@@ -77,6 +77,8 @@ A Journey Mode advancement tab is added:
 ### Other mods
 Everything is keyed by the item registry, so items added by other mods are researched and listed like vanilla ones, and research cost uses each item's own stack size. Progress for items from a removed mod is kept and returns if the mod is reinstalled. The advancements count vanilla items only.
 
+Tested with a modpack of about 90 mods. **Trinkets** (4.1.x) is supported: in a Journey Mode world its slots are drawn sunken like the rest of the inventory, slots it keeps hidden leave no empty boxes behind, and cogs that would sit under one of its slots are left out. Its side panels and tabs keep their own look. This works through optional patches that are skipped if Trinkets is missing or its code differs, so other versions simply keep Trinkets' grey slot squares.
+
 ## Requirements
 
 - Minecraft 26.2
@@ -95,10 +97,10 @@ The built jar is in `build/libs`. The dev client is capped at a 3 GB heap (see `
 
 Layout:
 - `src/main`: shared and server code. Research data, costs, the trash slot, God Mode, Mob Spawns, advancements and the world setting (`research/`), network packets (`network/`), and the mixin that lets 0x stop natural spawns (`mixin/`).
-- `src/client`: the inventory panels (`ResearchPanel`), the world creation switch (`JourneyToggleButton`), the inventory's steampunk look (`InventoryTheme`), client copy of the server's state (`ResearchClientState`), research sounds (`ResearchSounds`), and mixins for the inventory screen and the Create New World screen.
+- `src/client`: the inventory panels (`ResearchPanel`), the world creation switch (`JourneyToggleButton`), the inventory's steampunk look (`InventoryTheme`), client copy of the server's state (`ResearchClientState`), research sounds (`ResearchSounds`), and mixins for the inventory screen, the recipe book and the Create New World screen. Optional patches for other mods are in `mixin/compat` (see `journeymode.compat.mixins.json`).
 - `src/main/resources/data/journeymode/advancement`: the advancement files.
 - `sprites`: the source art (Aseprite files and PNGs) for the button icons. The in-game copies are in `src/main/resources/assets/journeymode/textures/gui`.
 
 ## Status
 
-Early work in progress. See [TODO.md](TODO.md) for what is planned, including moving the tab rules into a config file, a reload command, and testing with other mods.
+Early work in progress. See [TODO.md](TODO.md) for what is planned, including moving the tab rules into a config file, a reload command for the cost config, and remembering which panel was open.
