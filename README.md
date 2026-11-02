@@ -35,6 +35,7 @@ Open your inventory. A column of six icon buttons and a trash slot sits on its l
 
 ### Researched items (second button)
 - A scrolling grid of everything you have researched. Items you have started but not finished show greyed out, with how many more they need in the corner, and can't be taken yet. A thin scroll bar on the right can be clicked or dragged, and the mouse wheel works too.
+- Spell scrolls and books from Spell Engine and Wizards are researched one spell at a time too, and cost 1. Taking one gives that exact spell. Spell binding tables cost 1.
 - Potions, splash and lingering potions, tipped arrows, enchanted books and ominous bottles are researched one kind at a time: Potion of Healing and Potion of Swiftness are separate entries, and so are Sharpness V and Sharpness IV books. When you take one from the list, you get exactly the kind you researched. Each kind costs 1 to research.
 - Six tabs above the grid: All, Blocks, Tools & Combat, Materials, Food & Brewing, and Redstone & Misc. They match item tags (including the common `c:` tags other mods use) and what an item is, and an item can show in more than one tab. Search works inside the selected tab.
 - A cog toggle beside the search box hides items you have only partly researched. Click it again to show them.

@@ -80,6 +80,10 @@ public final class ResearchCosts {
 		m.put("minecraft:jukebox", 1);
 		m.put("minecraft:note_block", 1);
 		m.put("minecraft:bell", 1);
+		// Spell Engine and Wizards: spell scrolls, books and the spell binding table.
+		m.put("spell_engine:spell_scroll", 1);
+		m.put("spell_engine:spell_book", 1);
+		m.put("spell_engine:spell_binding", 1);
 		// Utility items that act like tools, copper golem statues, cauldrons and Waystones (when that mod is installed): one is enough.
 		m.put("minecraft:compass", 1);
 		m.put("minecraft:recovery_compass", 1);

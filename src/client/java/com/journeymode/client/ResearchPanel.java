@@ -21,9 +21,12 @@ import com.journeymode.research.ResearchCosts;
 
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.fabricmc.fabric.api.client.screen.v1.ScreenEvents;
+import net.fabricmc.fabric.api.client.screen.v1.ScreenKeyboardEvents;
 import net.fabricmc.fabric.api.client.screen.v1.ScreenMouseEvents;
 import net.fabricmc.fabric.api.client.screen.v1.Screens;
 import net.fabricmc.loader.api.FabricLoader;
+
+import org.lwjgl.glfw.GLFW;
 
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
@@ -259,6 +262,15 @@ public final class ResearchPanel {
 			});
 			ScreenEvents.afterBackground(screen).register((s, graphics, mouseX, mouseY, delta) ->
 					extract(client, inventory, graphics, mouseX, mouseY));
+			// While typing in the search box, keys must not reach the inventory: it would close on the inventory key (E)
+			// and act on the hotbar number keys. The box gets them itself; Escape still closes the screen.
+			ScreenKeyboardEvents.allowKeyPress(screen).register((s, event) -> {
+				if (searchBox.visible && searchBox.isFocused() && event.key() != GLFW.GLFW_KEY_ESCAPE) {
+					searchBox.keyPressed(event);
+					return false;
+				}
+				return true;
+			});
 			ScreenMouseEvents.allowMouseClick(screen).register((s, event) -> {
 				swallowRelease = click(client, inventory, event.x(), event.y(), event.button(), event.hasShiftDown());
 				return !swallowRelease;
@@ -517,13 +529,24 @@ public final class ResearchPanel {
 		}
 	}
 
+	/**
+	 * Takes the keyboard away from the search box. The screen has to be told too: it remembers which widget
+	 * is focused, and would otherwise ignore a later click on the box as "already focused".
+	 */
+	private static void unfocusSearch(InventoryScreen screen) {
+		if (searchBox.isFocused()) {
+			screen.setFocused(null);
+		}
+		searchBox.setFocused(false);
+	}
+
 	private static void extract(Minecraft client, InventoryScreen screen, GuiGraphicsExtractor graphics, int mouseX, int mouseY) {
 		Font font = client.font;
 		// With the recipe book open, everything is hidden (and ignores clicks) until it is closed again.
 		if (recipeBookOpen(screen) || !ResearchClientState.journeyEnabled()) {
 			searchBox.visible = false;
 			searchBox.active = false;
-			searchBox.setFocused(false);
+			unfocusSearch(screen);
 			draggingScrollbar = false;
 			return;
 		}
@@ -541,7 +564,7 @@ public final class ResearchPanel {
 		searchBox.visible = listOpen;
 		searchBox.active = listOpen;
 		if (!listOpen) {
-			searchBox.setFocused(false);
+			unfocusSearch(screen);
 		}
 		if (mode == Mode.NONE) {
 			return;
@@ -910,7 +933,7 @@ public final class ResearchPanel {
 			return false;
 		}
 		// Any other click takes the keyboard away from the search box.
-		searchBox.setFocused(false);
+		unfocusSearch(screen);
 		// With the research panel open, shift-clicking an item that still needs research sends it to the panel.
 		if (mode == Mode.RESEARCH && shift && (button == 0 || button == 1)) {
 			Slot slot = ((AbstractContainerScreenAccessor) screen).journeymode$hoveredSlot();

@@ -4,14 +4,27 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 import net.minecraft.core.Holder;
+import net.minecraft.core.Registry;
+import net.minecraft.core.RegistryAccess;
 import net.minecraft.core.HolderLookup;
+import com.mojang.brigadier.exceptions.CommandSyntaxException;
+import com.mojang.serialization.DataResult;
+
+import net.minecraft.core.component.DataComponentPatch;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.registries.Registries;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.ListTag;
+import net.minecraft.nbt.NbtOps;
+import net.minecraft.nbt.Tag;
+import net.minecraft.nbt.TagParser;
 import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
+import net.minecraft.tags.TagKey;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
@@ -31,11 +44,21 @@ import net.minecraft.world.item.enchantment.ItemEnchantments;
  *   <li>enchanted books, by their enchantments and levels
  *   ({@code minecraft:enchanted_book#minecraft:sharpness@5});</li>
  *   <li>ominous bottles, by strength ({@code minecraft:ominous_bottle#2}).</li>
+ *   <li>spell scrolls and books from Spell Engine (and mods built on it, like Wizards): the spell lives in the
+ *   item's data, so the key holds all of it ({@code spell_engine:spell_scroll#@{...}}) and the item given out
+ *   is rebuilt from it.</li>
  * </ul>
  * Those items are never researched as just the item, since that would be a potion with no potion in it.
  */
 public final class ResearchKeys {
 	private static final char KIND = '#';
+	/** Starts the kind of an item that is researched by its whole component data, rather than one thing in it. */
+	private static final String DATA = "@";
+	/** Starts the kind of a spell scroll: the id of the spell on it. Only the spell counts, not how the scroll was made. */
+	private static final String SPELL = "$";
+	private static final String SPELL_CONTAINER = "spell_engine:spell_container";
+	/** Items whose spell (or whatever else makes each one different) is kept in their data components. */
+	private static final Set<String> BY_DATA = Set.of("spell_engine:spell_scroll", "spell_engine:spell_book");
 
 	private ResearchKeys() {
 	}
@@ -57,13 +80,66 @@ public final class ResearchKeys {
 
 	/** Whether the item is one of those that are researched by kind and never as just the item. */
 	private static boolean byKind(Item item) {
-		return item == Items.ENCHANTED_BOOK || item == Items.OMINOUS_BOTTLE || item == Items.POTION
+		return byData(item) || item == Items.ENCHANTED_BOOK || item == Items.OMINOUS_BOTTLE || item == Items.POTION
 				|| item == Items.SPLASH_POTION || item == Items.LINGERING_POTION || item == Items.TIPPED_ARROW;
+	}
+
+	private static boolean byData(Item item) {
+		return BY_DATA.contains(BuiltInRegistries.ITEM.getKey(item).toString());
+	}
+
+	/** The id of the one spell in the item data (given as a component patch), or null if there is not exactly one. */
+	private static String spellOn(CompoundTag patch) {
+		if (patch.get(SPELL_CONTAINER) instanceof CompoundTag container && container.get("spell_ids") instanceof ListTag ids
+				&& ids.size() == 1) {
+			return ids.get(0).asString().orElse(null);
+		}
+		return null;
+	}
+
+	/**
+	 * Makes a spell scroll for a spell by asking Spell Engine to, so the scroll gets the same rarity, model and name
+	 * as one the game makes. Returns an empty stack if the spell does not exist or Spell Engine's code is not as expected.
+	 */
+	@SuppressWarnings({"unchecked", "rawtypes"})
+	private static ItemStack scrollOf(Item item, String spell, HolderLookup.Provider registries) {
+		try {
+			Identifier id = Identifier.tryParse(spell);
+			if (id == null || !(registries instanceof RegistryAccess access)) {
+				return ItemStack.EMPTY;
+			}
+			Class<?> scrollItem = Class.forName("net.spell_engine.item.ScrollItem");
+			Class<?> spellRegistry = Class.forName("net.spell_engine.api.spell.registry.SpellRegistry");
+			ResourceKey<Registry<Object>> registryKey = (ResourceKey<Registry<Object>>) spellRegistry.getField("KEY").get(null);
+			Optional<Registry<Object>> registry = access.lookup(registryKey);
+			if (registry.isEmpty()) {
+				return ItemStack.EMPTY;
+			}
+			Optional<Holder.Reference<Object>> holder = registry.get().get(ResourceKey.create(registryKey, id));
+			if (holder.isEmpty()) {
+				return ItemStack.EMPTY;
+			}
+			Object pool = scrollItem.getMethod("resolveSpellPool", Registry.class, Holder.class).invoke(null, registry.get(), holder.get());
+			ItemStack stack = new ItemStack(item);
+			scrollItem.getMethod("applySpell", ItemStack.class, Holder.class, TagKey.class).invoke(null, stack, holder.get(), pool);
+			return stack;
+		} catch (ReflectiveOperationException | RuntimeException | LinkageError e) {
+			return ItemStack.EMPTY;
+		}
 	}
 
 	/** Which kind of its item the stack is, or null if it has none. */
 	private static String kind(ItemStack stack) {
 		Item item = stack.getItem();
+		if (byData(item)) {
+			DataResult<Tag> encoded = DataComponentPatch.CODEC.encodeStart(NbtOps.INSTANCE, stack.getComponentsPatch());
+			Tag tag = encoded.result().orElse(null);
+			String spell = tag instanceof CompoundTag patch ? spellOn(patch) : null;
+			if (spell != null && BuiltInRegistries.ITEM.getKey(item).getPath().equals("spell_scroll")) {
+				return SPELL + spell;
+			}
+			return tag instanceof CompoundTag compound && !compound.isEmpty() ? DATA + compound : null;
+		}
 		if (item == Items.ENCHANTED_BOOK) {
 			ItemEnchantments enchantments = stack.get(DataComponents.STORED_ENCHANTMENTS);
 			if (enchantments == null || enchantments.isEmpty()) {
@@ -101,9 +177,19 @@ public final class ResearchKeys {
 			return byKind(item) ? ItemStack.EMPTY : new ItemStack(item);
 		}
 		String kind = key.substring(at + 1);
+		if (kind.startsWith(SPELL)) {
+			return scrollOf(item, kind.substring(SPELL.length()), registries);
+		}
 		ItemStack stack = new ItemStack(item);
 		try {
-			if (item == Items.ENCHANTED_BOOK) {
+			if (byData(item)) {
+				CompoundTag tag = TagParser.parseCompoundFully(kind.substring(DATA.length()));
+				DataComponentPatch patch = DataComponentPatch.CODEC.parse(NbtOps.INSTANCE, tag).result().orElse(null);
+				if (patch == null) {
+					return ItemStack.EMPTY;
+				}
+				stack.applyComponents(patch);
+			} else if (item == Items.ENCHANTED_BOOK) {
 				ItemEnchantments.Mutable enchantments = new ItemEnchantments.Mutable(ItemEnchantments.EMPTY);
 				for (String part : kind.split(",")) {
 					int split = part.lastIndexOf('@');
@@ -126,7 +212,7 @@ public final class ResearchKeys {
 				}
 				stack.set(DataComponents.POTION_CONTENTS, new PotionContents(potion.get()));
 			}
-		} catch (RuntimeException e) {
+		} catch (RuntimeException | CommandSyntaxException e) {
 			return ItemStack.EMPTY;
 		}
 		return stack;
