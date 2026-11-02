@@ -17,7 +17,7 @@ Journey Mode is chosen when a world is created and cannot be changed afterwards.
 
 ## Features
 
-Open your inventory. A column of six icon buttons and a trash slot sits on its left edge, centred on the inventory and clear of JEI on the right. Most buttons open a panel, and only one is open at a time. It all has a steampunk look, and in a Journey Mode world your inventory and recipe book match it. Everything hides while the recipe book is open and comes back when it closes.
+Open your inventory. A column of six icon buttons and a trash slot sits on its left edge, centred on the inventory and clear of JEI on the right. Most buttons open a panel, and only one is open at a time. It all has a steampunk look, and in a Journey Mode world your inventory, recipe book and the game's crafting menus (crafting table, furnaces, anvil, smithing table, stonecutter, loom, cartography table, grindstone, enchanting table, brewing stand and crafter) match it. Everything hides while the recipe book is open and comes back when it closes.
 
 ### Research (first button)
 - Pick up a stack with your cursor and click the panel. The items are used up and count toward that item's research cost.
@@ -26,6 +26,7 @@ Open your inventory. A column of six icon buttons and a trash slot sits on its l
 - Items in your inventory that are not fully researched yet carry a small brass cog in their top left corner.
 - The cost of an item is one full stack by default: 64 for most blocks and materials, 16 for ender pearls. Items that do not stack, like tools and armor, always cost 1. The mod's built-in balance changes that for some items:
   - **1:** crafting and menu blocks (crafting table, furnace, blast furnace, smoker, smithing table, stonecutter, loom, cartography table, fletching table, grindstone, anvil, enchanting table, brewing stand, crafter), plus sound blocks (jukebox, note block, bell), tool-like items (compass, recovery compass, clock, maps, bucket, lead, name tag), cauldrons, copper golem statues, Waystones (every waystone block from the Waystones mod), rare items, mob heads and armor trim templates. These crafting blocks are in the item tag `journeymode:crafting_stations`. Other mods' crafting tables and furnaces are included if they use the common tags (`c:player_workstations/crafting_tables` and `c:player_workstations/furnaces`). A mod or data pack can also add its own block to `journeymode:crafting_stations`, or you can add it to the config (`"modid:item": 1`). Every item from The Crown of Chaos also costs 1.
+  - **10:** obsidian, which is what the smallest Nether portal takes.
   - **25:** ingots, raw ores, ore blocks, gems, coal, ancient debris and netherite scrap.
   - **32:** all food, and plants: saplings, flowers, crops, seeds, and things like grass, ferns, mushrooms, vines, kelp and berries.
 - A built-in cost is never more than one full stack, so food that stacks to 16 costs 16.
@@ -37,7 +38,7 @@ Open your inventory. A column of six icon buttons and a trash slot sits on its l
 - A scrolling grid of everything you have researched. Items you have started but not finished show greyed out, with how many more they need in the corner, and can't be taken yet. A thin scroll bar on the right can be clicked or dragged, and the mouse wheel works too.
 - Spell scrolls and books from Spell Engine and Wizards are researched one spell at a time too, and cost 1. Taking one gives that exact spell. Spell binding tables cost 1.
 - Potions, splash and lingering potions, tipped arrows, enchanted books and ominous bottles are researched one kind at a time: Potion of Healing and Potion of Swiftness are separate entries, and so are Sharpness V and Sharpness IV books. When you take one from the list, you get exactly the kind you researched. Each kind costs 1 to research.
-- Six tabs above the grid: All, Blocks, Tools & Combat, Materials, Food & Brewing, and Redstone & Misc. They match item tags (including the common `c:` tags other mods use) and what an item is, and an item can show in more than one tab. Search works inside the selected tab.
+- Six tabs above the grid: All, Blocks, Tools & Combat, Materials, Food & Brewing, and Redstone & Misc. The Tools & Combat tab also holds the crowns from The Crown of Chaos. They match item tags (including the common `c:` tags other mods use) and what an item is, and an item can show in more than one tab. Search works inside the selected tab.
 - A cog toggle beside the search box hides items you have only partly researched. Click it again to show them.
 - A search box at the top. Type words to match item names (`iron pick`), or start with `@` to filter by mod (`@create`).
 - Clicks work like the creative menu's item list:
@@ -50,7 +51,7 @@ Open your inventory. A column of six icon buttons and a trash slot sits on its l
 
 ### Time (third button)
 - A slider with four stops: Day, Noon, Night and Midnight. Drag the knob and let go to set the time.
-- Operators only. Everyone else sees the slider dimmed with "Operators only". The server runs `/time set` as the player, so the game's own permission check decides.
+- Operators only. Everyone else sees the slider dimmed with "Operators only". The server runs `/time set` as the player, so the game's own permission check decides. It runs silently: no chat message, and other operators are not told.
 
 ### Weather (fourth button)
 - A slider with three stops: Clear, Rain and Thunder. Works like the Time slider, using `/weather`, and is for operators only.

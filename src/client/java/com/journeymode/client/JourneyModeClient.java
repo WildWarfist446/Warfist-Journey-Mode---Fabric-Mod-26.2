@@ -8,5 +8,6 @@ public class JourneyModeClient implements ClientModInitializer {
 		ResearchClientState.initialize();
 		ResearchSounds.initialize();
 		ResearchPanel.initialize();
+		MenuTheme.initialize();
 	}
 }

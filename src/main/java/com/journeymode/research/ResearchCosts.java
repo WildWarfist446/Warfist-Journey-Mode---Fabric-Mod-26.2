@@ -80,6 +80,8 @@ public final class ResearchCosts {
 		m.put("minecraft:jukebox", 1);
 		m.put("minecraft:note_block", 1);
 		m.put("minecraft:bell", 1);
+		// Obsidian: what the smallest Nether portal takes (a 4 by 5 frame without its corners).
+		m.put("minecraft:obsidian", 10);
 		// Spell Engine and Wizards: spell scrolls, books and the spell binding table.
 		m.put("spell_engine:spell_scroll", 1);
 		m.put("spell_engine:spell_book", 1);

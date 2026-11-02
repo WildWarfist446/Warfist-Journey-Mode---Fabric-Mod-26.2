@@ -5,6 +5,7 @@ import com.journeymode.client.mixin.AbstractContainerScreenAccessor;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.ImageButton;
+import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.client.gui.screens.inventory.InventoryScreen;
 import net.minecraft.resources.Identifier;
 import net.minecraft.world.inventory.Slot;
@@ -46,9 +47,13 @@ public final class InventoryTheme {
 		return false;
 	}
 
-	/** Whether the steampunk look applies to the recipe book: in a Journey Mode world, beside the survival inventory only. */
+	/** Whether the steampunk look applies to the recipe book: in a Journey Mode world, beside the survival inventory, crafting table and furnaces. */
 	public static boolean themesRecipeBook() {
-		return ResearchClientState.journeyEnabled() && Minecraft.getInstance().gui.screen() instanceof InventoryScreen;
+		if (!ResearchClientState.journeyEnabled()) {
+			return false;
+		}
+		var screen = Minecraft.getInstance().gui.screen();
+		return screen instanceof InventoryScreen || MenuTheme.hasRecipeBook(screen);
 	}
 
 	/** Draws the recipe book's background over the area the game's picture would cover. */
@@ -96,7 +101,7 @@ public final class InventoryTheme {
 	 * Draws a steampunk plate with a book icon over the game's recipe book button, which still does
 	 * the clicking underneath. It looks pressed while the recipe book is open.
 	 */
-	public static void drawRecipeButton(Minecraft client, InventoryScreen screen, GuiGraphicsExtractor graphics, int mouseX, int mouseY) {
+	public static void drawRecipeButton(Minecraft client, AbstractContainerScreen<?> screen, GuiGraphicsExtractor graphics, int mouseX, int mouseY) {
 		for (var widget : net.fabricmc.fabric.api.client.screen.v1.Screens.getWidgets(screen)) {
 			if (widget instanceof ImageButton button) {
 				AbstractContainerScreenAccessor a = (AbstractContainerScreenAccessor) screen;

@@ -85,7 +85,7 @@ public enum ItemCategory {
 			case ALL -> true;
 			case BLOCKS -> item instanceof BlockItem;
 			case TOOLS -> stack.has(DataComponents.TOOL) || stack.has(DataComponents.WEAPON) || tagged(item, TOOL_TAGS)
-					|| named(id, TOOL_ITEMS);
+					|| named(id, TOOL_ITEMS) || isCrown(id);
 			case MATERIALS -> tagged(item, MATERIAL_TAGS) || named(id, MATERIAL_ITEMS);
 			case FOOD -> stack.has(DataComponents.FOOD) || stack.has(DataComponents.POTION_CONTENTS) || tagged(item, FOOD_TAGS)
 					|| named(id, FOOD_ITEMS);
@@ -93,6 +93,11 @@ public enum ItemCategory {
 			case MISC -> tagged(item, MISC_TAGS) || named(id, MISC_ITEMS)
 					|| !(BLOCKS.matches(item) || TOOLS.matches(item) || MATERIALS.matches(item) || FOOD.matches(item));
 		};
+	}
+
+	/** The crowns from The Crown of Chaos are worn like armor, so they belong with it. */
+	private static boolean isCrown(Identifier id) {
+		return id.getNamespace().equals("crownofchaos") && id.getPath().contains("crown");
 	}
 
 	private static boolean named(Identifier id, Set<String> paths) {

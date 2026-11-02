@@ -104,7 +104,7 @@ public final class ResearchManager {
 		if (!enabled(player) || payload.stop() < 0 || payload.stop() >= TIME_NAMES.length) {
 			return;
 		}
-		player.level().getServer().getCommands().performPrefixedCommand(player.createCommandSourceStack(), "time set " + TIME_NAMES[payload.stop()]);
+		player.level().getServer().getCommands().performPrefixedCommand(player.createCommandSourceStack().withSuppressedOutput(), "time set " + TIME_NAMES[payload.stop()]);
 		if (player.permissions().hasPermission(Permissions.COMMANDS_GAMEMASTER)) {
 			JourneyAdvancements.award(player, "khonshu_control");
 		}
@@ -118,7 +118,7 @@ public final class ResearchManager {
 		if (!enabled(player) || payload.stop() < 0 || payload.stop() >= WEATHER_NAMES.length) {
 			return;
 		}
-		player.level().getServer().getCommands().performPrefixedCommand(player.createCommandSourceStack(), "weather " + WEATHER_NAMES[payload.stop()]);
+		player.level().getServer().getCommands().performPrefixedCommand(player.createCommandSourceStack().withSuppressedOutput(), "weather " + WEATHER_NAMES[payload.stop()]);
 		if (player.permissions().hasPermission(Permissions.COMMANDS_GAMEMASTER)) {
 			JourneyAdvancements.award(player, "weather_wizard");
 		}
