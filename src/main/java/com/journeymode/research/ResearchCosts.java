@@ -46,13 +46,6 @@ public final class ResearchCosts {
 	/** The pseudo tag in the config (and in {@link #BUILT_IN}) that matches every item that can be eaten. */
 	private static final String FOOD_KEY = "#journeymode:food";
 
-	/**
-	 * The mod's own balance. The config file is applied on top of it: an entry there beats a built-in one
-	 * that matches the same way, and items it does not mention keep the built-in cost. A built-in cost is
-	 * never more than one full stack of the item (so food that stacks to 16 costs 16, not 32).
-	 */
-	private static final Map<String, Integer> BUILT_IN = builtIn();
-
 	private static final String[] CREATE_ONE = {
 			"adjustable_chain_gearshift",
 			"analog_lever",
@@ -433,6 +426,13 @@ public final class ResearchCosts {
 			"", "exposed_", "weathered_", "oxidized_", "waxed_", "waxed_exposed_", "waxed_weathered_", "waxed_oxidized_"};
 	private static final String[] CREATE_COPPER_FORMS = {
 			"copper_shingles", "copper_shingle_slab", "copper_shingle_stairs", "copper_tiles", "copper_tile_slab", "copper_tile_stairs"};
+
+	/**
+	 * The mod's own balance. The config file is applied on top of it: an entry there beats a built-in one
+	 * that matches the same way, and items it does not mention keep the built-in cost. A built-in cost is
+	 * never more than one full stack of the item (so food that stacks to 16 costs 16, not 32).
+	 */
+	private static final Map<String, Integer> BUILT_IN = builtIn();
 
 	private static Map<String, Integer> builtIn() {
 		Map<String, Integer> m = new LinkedHashMap<>();
