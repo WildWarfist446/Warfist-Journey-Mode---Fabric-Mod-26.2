@@ -96,6 +96,7 @@ public final class ResearchCosts {
 		m.put("minecraft:lead", 1);
 		m.put("minecraft:name_tag", 1);
 		m.put("minecraft:cauldron", 1);
+		m.put("minecraft:beehive", 1);
 		m.put("minecraft:copper_golem_statue", 1);
 		m.put("minecraft:exposed_copper_golem_statue", 1);
 		m.put("minecraft:weathered_copper_golem_statue", 1);

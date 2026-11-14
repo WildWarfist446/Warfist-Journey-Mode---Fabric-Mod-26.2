@@ -31,7 +31,69 @@ import net.minecraft.world.inventory.Slot;
  * slots; the parts that move (progress arrows, flames, buttons) are still drawn by the game on top.
  */
 public final class MenuTheme {
+	/** The furnace's flame, 14 by 14, where the game puts its own at (56, 36). */
+	private static final String[] FLAME = {
+			"......XX......",
+			".....XXX......",
+			".....XXXX.....",
+			"....XXXXXX....",
+			"....XXXXXXX...",
+			"...XXXXXXXXX..",
+			"...XXXXXXXXX..",
+			"..XXXXXXXXXXX.",
+			"..XXXXXXXXXXX.",
+			"..XXXX..XXXXX.",
+			"..XXX....XXXX.",
+			"..XXX....XXXX.",
+			"...XXX..XXXX..",
+			"....XXXXXXX..."};
+	private static final int ARROW_WIDTH = 24;
+	private static final int ARROW_HEIGHT = 16;
+
 	private MenuTheme() {
+	}
+
+	/** Whether pixel (col, row) of the furnace's 24 by 16 progress arrow is part of it: a short shaft and a pointed head. */
+	private static boolean arrowPixel(int col, int row) {
+		if (col < 16) {
+			return row >= 6 && row <= 9;
+		}
+		return Math.abs(row - 7.5) < 8 - (col - 16);
+	}
+
+	/** Draws rows {@code fromRow} up to {@code toRow} of the flame with its top left corner at (x, y), in one colour. */
+	private static void flame(GuiGraphicsExtractor graphics, int x, int y, int fromRow, int toRow, int color) {
+		for (int row = fromRow; row < toRow; row++) {
+			for (int col = 0; col < FLAME[row].length(); col++) {
+				if (FLAME[row].charAt(col) == 'X') {
+					graphics.fill(x + col, y + row, x + col + 1, y + row + 1, color);
+				}
+			}
+		}
+	}
+
+	/** Draws the first {@code columns} columns of the progress arrow with its top left corner at (x, y), in one colour. */
+	private static void arrow(GuiGraphicsExtractor graphics, int x, int y, int columns, int color) {
+		for (int col = 0; col < columns; col++) {
+			for (int row = 0; row < ARROW_HEIGHT; row++) {
+				if (arrowPixel(col, row)) {
+					graphics.fill(x + col, y + row, x + col + 1, y + row + 1, color);
+				}
+			}
+		}
+	}
+
+	/**
+	 * The part of a furnace's flame that is lit, in place of the game's orange sprite: the rows from {@code v} down,
+	 * with the first of them at screen height {@code y}.
+	 */
+	public static void drawFlameFill(GuiGraphicsExtractor graphics, int x, int y, int v, int height) {
+		flame(graphics, x, y - v, v, v + height, ResearchPanel.ACCENT);
+	}
+
+	/** The part of a furnace's progress arrow that is filled in, in place of the game's white sprite. */
+	public static void drawArrowFill(GuiGraphicsExtractor graphics, int x, int y, int width) {
+		arrow(graphics, x, y, width, ResearchPanel.ACCENT);
 	}
 
 	public static void initialize() {
@@ -90,15 +152,22 @@ public final class MenuTheme {
 			}
 		}
 
+		// The furnaces' empty flame and arrow, at the game's own spots: the game draws the lit parts over them.
+		if (screen instanceof AbstractFurnaceScreen) {
+			flame(graphics, x + 56, y + 36, 0, FLAME.length, ResearchPanel.PANEL_OUTER);
+			arrow(graphics, x + 79, y + 34, ARROW_WIDTH, ResearchPanel.PANEL_OUTER);
+		}
+
 		// An arrow pointing at the result slot, where the game's picture had one.
 		AbstractContainerMenu menu = screen.getMenu();
 		int result = menu instanceof CraftingMenu ? 0
-				: menu instanceof AbstractFurnaceMenu || menu instanceof GrindstoneMenu || menu instanceof CartographyTableMenu ? 2
+				: menu instanceof AbstractFurnaceMenu ? -1
+				: menu instanceof GrindstoneMenu || menu instanceof CartographyTableMenu ? 2
 				: menu instanceof ItemCombinerMenu combiner ? combiner.getResultSlot() : -1;
 		if (result >= 0 && result < menu.slots.size()) {
 			Slot slot = menu.slots.get(result);
 			int tip = x + slot.x - 3;
-			int length = menu instanceof AbstractFurnaceMenu || menu instanceof CraftingMenu ? 24 : 13;
+			int length = menu instanceof CraftingMenu ? 24 : 13;
 			int middle = y + slot.y + 8;
 			graphics.fill(tip - length, middle - 1, tip - 4, middle + 1, ResearchPanel.ACCENT);
 			for (int i = 0; i < 4; i++) {
