@@ -27,6 +27,7 @@ Open your inventory. A column of six icon buttons and a trash slot sits on its l
 - The cost of an item is one full stack by default: 64 for most blocks and materials, 16 for ender pearls. Items that do not stack, like tools and armor, always cost 1. The mod's built-in balance changes that for some items:
   - **1:** crafting and menu blocks (crafting table, furnace, blast furnace, smoker, smithing table, stonecutter, loom, cartography table, fletching table, grindstone, anvil, enchanting table, brewing stand, crafter), plus sound blocks (jukebox, note block, bell), tool-like items (compass, recovery compass, clock, maps, bucket, lead, name tag), cauldrons, beehives, copper golem statues, Waystones (every waystone block from the Waystones mod), rare items, mob heads and armor trim templates. These crafting blocks are in the item tag `journeymode:crafting_stations`. Other mods' crafting tables and furnaces are included if they use the common tags (`c:player_workstations/crafting_tables` and `c:player_workstations/furnaces`). A mod or data pack can also add its own block to `journeymode:crafting_stations`, or you can add it to the config (`"modid:item": 1`). Every item from The Crown of Chaos also costs 1.
   - **10:** obsidian, which is what the smallest Nether portal takes.
+  - **Create:** the mod is supported (tested with Create Fly). Its machines, mechanisms, contraptions, train and logistics parts, tools, diving gear, filters and schematics cost 1, and so does every colour of its seats, toolboxes, postboxes, valve handles and table cloths. Plain parts like shafts, cogwheels, sheets, casings, bars, ladders, scaffolding, doors, windows and glass, and copper shingles and tiles cost 16. Alloys, rose quartz, crushed raw metals and metal blocks cost 25, and its decorative stone families (cut, polished, bricks, pillars, slabs, stairs and walls) cost 32.
   - **25:** ingots, raw ores, ore blocks, gems, coal, ancient debris and netherite scrap.
   - **32:** all food, and plants: saplings, flowers, crops, seeds, and things like grass, ferns, mushrooms, vines, kelp and berries.
 - A built-in cost is never more than one full stack, so food that stacks to 16 costs 16.
@@ -90,7 +91,17 @@ A Journey Mode advancement tab is added:
 ### Other mods
 Everything is keyed by the item registry, so items added by other mods are researched and listed like vanilla ones, and research cost uses each item's own stack size. Progress for items from a removed mod is kept and returns if the mod is reinstalled. The advancements count vanilla items only.
 
-Tested with a modpack of about 90 mods. **Trinkets** (4.1.x) is supported, and its extra slots fit in with the inventory's look. Its side panels and tabs keep their own look. The support is optional, and other versions of Trinkets just keep their normal slot look.
+Tested with a modpack of about 90 mods. These mods have built-in support, and none of them is required:
+
+| Mod | What the support does |
+|---|---|
+| **Create** (Create Fly) | Machines, mechanisms, trains, logistics, tools and every dye colour of seats, toolboxes, postboxes, valve handles and table cloths cost 1. Plain parts and glass cost 16, alloys and crushed metals 25, and the decorative stone families 32. |
+| **Spell Engine** and **Wizards** | Spell scrolls and spell books are researched one spell at a time, and taking one gives that exact spell. Scrolls, books and the spell binding table cost 1. |
+| **Waystones** | Every waystone block costs 1. |
+| **The Crown of Chaos** | Every item costs 1, and the crowns show in the Tools & Combat tab. |
+| **Trinkets** (4.1.x) | Its extra slots fit in with the inventory's look. Its side panels and tabs keep their own look. Other versions of Trinkets just keep their normal slot look. |
+
+Costs for any other mod can be set in `config/journeymode-costs.json` (see Research above).
 
 ## Requirements
 

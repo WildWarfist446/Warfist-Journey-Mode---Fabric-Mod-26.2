@@ -78,6 +78,30 @@ public final class ResearchKeys {
 		return item == null || item == Items.AIR ? null : item;
 	}
 
+	/**
+	 * The key an older save's key stands for now. Spell scrolls used to be saved under their whole component data, which
+	 * differs for the same spell (the name is written differently by different versions of the mod that made the scroll),
+	 * so one spell could be researched several times. They are now saved under just the spell (see {@link #SPELL}); this
+	 * turns an old key into that form, so the entries for one spell are counted as one.
+	 */
+	public static String canonical(String key) {
+		int at = key.indexOf(KIND + DATA);
+		if (at < 0) {
+			return key;
+		}
+		try {
+			Item item = itemOf(key);
+			if (item == null || !byData(item) || !BuiltInRegistries.ITEM.getKey(item).getPath().equals("spell_scroll")) {
+				return key;
+			}
+			CompoundTag tag = TagParser.parseCompoundFully(key.substring(at + 1 + DATA.length()));
+			String spell = spellOn(tag);
+			return spell == null ? key : key.substring(0, at) + KIND + SPELL + spell;
+		} catch (RuntimeException | CommandSyntaxException e) {
+			return key;
+		}
+	}
+
 	/** Whether the item is one of those that are researched by kind and never as just the item. */
 	private static boolean byKind(Item item) {
 		return byData(item) || item == Items.ENCHANTED_BOOK || item == Items.OMINOUS_BOTTLE || item == Items.POTION

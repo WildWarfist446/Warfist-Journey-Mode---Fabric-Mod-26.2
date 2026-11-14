@@ -29,7 +29,12 @@ public final class ResearchData extends SavedData {
 	}
 
 	private ResearchData(Map<UUID, Map<String, Integer>> loaded) {
-		loaded.forEach((player, items) -> this.progress.put(player, new HashMap<>(items)));
+		// Older saves can hold several keys for what is now one thing (see ResearchKeys.canonical); they are merged here.
+		loaded.forEach((player, items) -> {
+			Map<String, Integer> merged = new HashMap<>();
+			items.forEach((key, amount) -> merged.merge(ResearchKeys.canonical(key), amount, Math::max));
+			this.progress.put(player, merged);
+		});
 	}
 
 	public static ResearchData get(MinecraftServer server) {
